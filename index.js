@@ -2,7 +2,7 @@ const { ethers } = require('ethers');
 const { Executor } = require('./executor');
 const logger = require('./logger');
 // const executor = new Executor({ wsNodeUrl: 'wss://fittest-magical-reel.discover.quiknode.pro/e7539618fd1f0e7f4721f9e3f4f153656ccf7a92/' });
-const executor = new Executor({wsNodeUrl:'ws://51.178.179.113:8546'});
+const executor = new Executor({ wsNodeUrl: 'ws://51.178.179.113:8546' });
 
 function onPedingHandler(tx, invocation) {
     let token0 = "";
@@ -14,6 +14,7 @@ function onPedingHandler(tx, invocation) {
         token0 = '0x' + data.slice(-104, -64)
         token1 = '0x' + data.slice(-40);
     } else if (invocation.name == "execute" && to == executor.uniAddress) {
+
         let length = invocation.args[1].length;
         let data = "";
         for (let i = 0; i < length; i++) {
@@ -22,16 +23,15 @@ function onPedingHandler(tx, invocation) {
                 data = element;
             }
         }
-        if (!data.endsWith("0000")) {
-            token0 = '0x' + data.slice(-104, -64)
-            token1 = '0x' + data.slice(-40);
-        } else if (data.endsWith("000000000000000000000000000000000000000000000000000000000000")) {
+        if (data.endsWith("000000000000000000000000000000000000000000000000000000000000")) {
             token0 = '0x' + data.slice(-60 - 40 - 40 - 6, -60 - 40 - 6)
             token1 = '0x' + data.slice(-60 - 40, - 60);
-        }
-        else {
+        } else if (data.endsWith('0000')) {
             token0 = '0x' + data.slice(-128, -88)
             token1 = '0x' + data.slice(-82, - 42);
+        } else {
+            token0 = '0x' + data.slice(-104, -64)
+            token1 = '0x' + data.slice(-40);
         }
     } else if (invocation.name == 'swapExactETHForTokens' || invocation.name == 'swapETHForExactTokens' || invocation.name == 'swapExactETHForTokensSupportingFeeOnTransferTokens') {
         let data = invocation.args[1];
@@ -52,19 +52,20 @@ function onPedingHandler(tx, invocation) {
                 token1 = '0x' + invoc[0][0].slice(-40);
                 break;
 
-            } else if (element.startsWith('0x04e45aaf')) { //0x04e45aaf is exactInputSingle      
+            } else if (element.startsWith('0x04e45aaf') || element.startsWith('0x414bf389')) { //0x04e45aaf is exactInputSingle      
                 let invoc = executor.v3Interface.decodeFunctionData("exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160))", element);
                 token0 = invoc[0][0];
                 token1 = invoc[0][1];
                 break;
             } else if (element.startsWith('0x49404b7')) { // unwrapWETH9(uint256, address)
-                //nothing!
+                //忽略掉ETH2WETH的调用
             }
 
         }
 
     } else if (invocation.name == 'multicall' && to == executor.v3r2Address) {
         let array = invocation.args[invocation.args.length > 1 ? 1 : 0];
+        // console.log(array);
         for (let index = 0; index < array.length; index++) {
             const element = array[index];
             // 0x472b43f3 is swapExactTokensForTokens
@@ -85,11 +86,14 @@ function onPedingHandler(tx, invocation) {
                 break
             } else if (element.startsWith('0xf3995c67')) {
                 // 这是签名，不用理会
-            } else if (element.startsWith('0xc04b8d59')) {
-                let invoc = executor.v3r2Interface.decodeFunctionData("exactInput((bytes,address,uint256,uint256))", data);
+            } else if (element.startsWith('0xb858183f')) {
+                let invoc = executor.v3r2Interface.decodeFunctionData("exactInput((bytes,address,uint256,uint256))", element);
                 token0 = invoc[0][0].slice(0, 42);
                 token1 = '0x' + invoc[0][0].slice(-40)
                 break
+            } else if (element.startsWith('0x5023b4df')) {
+                token0 = element.slice(10 + 24, 10 + 24 + 40);
+                token1 = element.slice(10 + 24 + 40 + 24, 10 + 24 + 40 + 24 + 40);
             }
         }
 
@@ -127,7 +131,6 @@ function onPedingHandler(tx, invocation) {
         if (invocation.name.indexOf('Liquidity') == 0) {
             logger.info(`${tx.hash}, ${invocation.name}, not implemented ==============`);
         }
-        return
     }
     return {
         token0: token0, token1: token1
@@ -139,7 +142,7 @@ function onPedingHandler(tx, invocation) {
     logger.info(`balance: ${mybalance}`);
     let flowlist = ["0xaf2358e98683265cbd3a48509123d390ddf54534", "0x9dda370f43567b9c757a3f946705567bce482c42"];
     // return;
-    let tx = await executor.getTransaction('0xdfebea04a19c0064708404ed7119868e5cbc1bf936e106003ac63151a349a847');
+    let tx = await executor.getTransaction('0x76c80fd4fc7175cd086c33b7ee39d10018c9e696e2bf081249daff4b620d3811');
     let invocation = executor.parseTransaction(tx);
     let rs = onPedingHandler(tx, invocation);
     // if (rs) {
@@ -156,15 +159,18 @@ function onPedingHandler(tx, invocation) {
         }
         try {
             let rs = onPedingHandler(tx, invocation);
-            if (rs) {
-                if(flowlist.includes(tx.from.toLowerCase())){
-                    let balance = await executor.getBalance(tx.from);
-                    balance = ethers.utils.formatEther(balance);
+            if (rs && rs.token0 != '' && rs.token1 != '') {
+                // if(flowlist.includes(tx.from.toLowerCase())){
+
+                let balance = await executor.getBalance(tx.from);
+                balance = ethers.utils.formatEther(balance);
+                if (balance > 100) {
                     logger.info(`hash: ${tx.hash} function: ${invocation.name}`);
                     logger.info(`from: ${tx.from} balance: ${balance} token0: ${rs.token0} token1: ${rs.token1}`);
                 }
+                // }
             }
-            // if (!rs) {
+            // if (!rs || (rs && rs.token0 == '')) {
             //     logger.info(`hash: ${tx.hash} function: ${invocation.name}`);
             //     logger.info(`from: ${tx.from} token0: ${rs.token0} token1: ${rs.token1}`);
             // }
