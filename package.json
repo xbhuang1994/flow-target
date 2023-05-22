@@ -1,0 +1,17 @@
+{
+  "name": "flow-target",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ethers": "^6.4.0",
+    "ethers-utils": "^2.1.11",
+    "winston": "^3.8.2",
+    "yaml": "^2.2.2"
+  }
+}
