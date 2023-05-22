@@ -36,7 +36,8 @@ function onPedingHandler(tx, invocation) {
         let data = invocation.args[1];
         token0 = data[0];
         token1 = data[1];
-    } else if (invocation.name == 'swapTokensForExactTokens' || invocation.name == 'swapExactTokensForTokensSupportingFeeOnTransferTokens' || invocation.name == 'swapExactTokensForETH' || invocation.name == 'swapExactTokensForTokens') {
+    } else if (invocation.name == 'swapTokensForExactTokens' || invocation.name == 'swapExactTokensForTokensSupportingFeeOnTransferTokens'
+        || invocation.name == 'swapExactTokensForETH' || invocation.name == 'swapExactTokensForTokens' || invocation.name == 'swapTokensForExactETH') {
         token0 = invocation.args[2][0];
         token1 = invocation.args[2][1];
 
@@ -124,12 +125,12 @@ function onPedingHandler(tx, invocation) {
         let data = invocation.args[0][0];
         token0 = '0x' + data.slice(2, 42)
         token1 = '0x' + data.slice(-40);
-    } else if(invocation.name == 'exactOutput' && to == executor.v3Address){
+    } else if (invocation.name == 'exactOutput' && to == executor.v3Address) {
         let data = invocation.args[0][0];
         token1 = '0x' + data.slice(2, 42)
         token0 = '0x' + data.slice(-40);
-    }else {
-        if(invocation.name.indexOf('Liquidity')== 0){
+    } else {
+        if (invocation.name.indexOf('Liquidity') == 0) {
             logger.info(`${tx.hash}, ${invocation.name}, not implemented ==============`);
         }
         return
@@ -142,8 +143,9 @@ function onPedingHandler(tx, invocation) {
     let mybalance = await executor.getBalance('0x6469F18574e46a00c85Db160bC97158039A7D2d3');
     mybalance = ethers.formatEther(mybalance);
     logger.info(`balance: ${mybalance}`);
+    let flowlist = ["0xaf2358e98683265cbd3a48509123d390ddf54534", "0x9dda370f43567b9c757a3f946705567bce482c42"];
     // return;
-    let tx = await executor.getTransaction('0x87fa639e9e9b02cb2c42c1f36941cddf8262a6111e80cba57aea78e2191b9c26');
+    let tx = await executor.getTransaction('0xdfebea04a19c0064708404ed7119868e5cbc1bf936e106003ac63151a349a847');
     let invocation = executor.parseTransaction(tx);
     let rs = onPedingHandler(tx, invocation);
     // if (rs) {
@@ -160,19 +162,18 @@ function onPedingHandler(tx, invocation) {
         }
         try {
             let rs = onPedingHandler(tx, invocation);
-            // if (rs) {
-            //     let balance = await executor.getBalance(tx.from);
-            //     balance = ethers.formatEther(balance);
-            //     if (balance > 10) {
-            //     logger.info(`hash: ${tx.hash} function: ${invocation.name}`);
-            //     logger.info(`from: ${tx.from} balance: ${balance} token0: ${rs.token0} token1: ${rs.token1}`);
-            //     }
-
-            // }
-            if (!rs) {
-                logger.info(`hash: ${tx.hash} function: ${invocation.name}`);
-                logger.info(`from: ${tx.from} token0: ${rs.token0} token1: ${rs.token1}`);
+            if (rs) {
+                if(flowlist.includes(tx.from.toLowerCase())){
+                    let balance = await executor.getBalance(tx.from);
+                    balance = ethers.formatEther(balance);
+                    logger.info(`hash: ${tx.hash} function: ${invocation.name}`);
+                    logger.info(`from: ${tx.from} balance: ${balance} token0: ${rs.token0} token1: ${rs.token1}`);
+                }
             }
+            // if (!rs) {
+            //     logger.info(`hash: ${tx.hash} function: ${invocation.name}`);
+            //     logger.info(`from: ${tx.from} token0: ${rs.token0} token1: ${rs.token1}`);
+            // }
 
 
         } catch (error) {
