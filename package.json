@@ -9,8 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "ethers": "^6.4.0",
-    "ethers-utils": "^2.1.11",
+    "@typechain/ethers-v5": "^10.2.1",
     "winston": "^3.8.2",
     "yaml": "^2.2.2"
   }

@@ -5,10 +5,10 @@ class Executor {
         this.wsNodeUrl = params.wsNodeUrl;
         this.providers = {};
         this.abiMap = {};
-        this.v2Interface = new ethers.Interface(this.abi('v2_router'));
-        this.v3Interface = new ethers.Interface(this.abi('v3_router'));
-        this.v3r2Interface = new ethers.Interface(this.abi('v3_router2'));
-        this.uniInterface = new ethers.Interface(this.abi('uni_router'));
+        this.v2Interface = new ethers.utils.Interface(this.abi('v2_router'));
+        this.v3Interface = new ethers.utils.Interface(this.abi('v3_router'));
+        this.v3r2Interface = new ethers.utils.Interface(this.abi('v3_router2'));
+        this.uniInterface = new ethers.utils.Interface(this.abi('uni_router'));
         this.v2Address = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D".toLowerCase();
         this.v3Address = "0xe592427a0aece92de3edee1f18e0157c05861564".toLowerCase();
         this.v3r2Address = "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45".toLowerCase();
@@ -31,7 +31,7 @@ class Executor {
         if (provider) {
             return provider;
         }
-        provider = new ethers.WebSocketProvider(this.wsNodeUrl);
+        provider = new ethers.providers.WebSocketProvider(this.wsNodeUrl);
         this.providers[name] = provider;
         return provider;
     }
@@ -44,7 +44,7 @@ class Executor {
         this.subscribed = true;
         logger.debug('subscribePendingTx: proceeding');
 
-        this.wsSubscribeProvider = new ethers.WebSocketProvider(this.wsNodeUrl);
+        this.wsSubscribeProvider = new ethers.providers.WebSocketProvider(this.wsNodeUrl);
         this.wsSubscribeProvider.on('pending', async (hash) => {
             this.count++;
             var txReceived = now();

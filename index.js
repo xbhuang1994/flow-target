@@ -1,7 +1,8 @@
 const { ethers } = require('ethers');
 const { Executor } = require('./executor');
 const logger = require('./logger');
-const executor = new Executor({ wsNodeUrl: 'wss://fittest-magical-reel.discover.quiknode.pro/e7539618fd1f0e7f4721f9e3f4f153656ccf7a92/' });
+// const executor = new Executor({ wsNodeUrl: 'wss://fittest-magical-reel.discover.quiknode.pro/e7539618fd1f0e7f4721f9e3f4f153656ccf7a92/' });
+const executor = new Executor({wsNodeUrl:'ws://51.178.179.113:8546'});
 
 function onPedingHandler(tx, invocation) {
     let token0 = "";
@@ -63,16 +64,9 @@ function onPedingHandler(tx, invocation) {
         }
 
     } else if (invocation.name == 'multicall' && to == executor.v3r2Address) {
-        // let length = invocation.args.length;
-        // if (length == 1 && invocation.args[0][0].startsWith("0x04e45aaf")) {
-        //     token0 = '0x' + invocation.args[0][0].slice(34, 34 + 40);
-        //     token1 = '0x' + invocation.args[0][0].slice(34 + 64, 34 + 64 + 40);
-        // } else {
         let array = invocation.args[invocation.args.length > 1 ? 1 : 0];
-        // let array = invocation.args;
         for (let index = 0; index < array.length; index++) {
             const element = array[index];
-            // console.log(element);
             // 0x472b43f3 is swapExactTokensForTokens
             if (element.startsWith('0x472b43f3')) {
                 let invoc = executor.v3r2Interface.decodeFunctionData("swapExactTokensForTokens(uint256, uint256, address[], address)", element);
@@ -141,7 +135,7 @@ function onPedingHandler(tx, invocation) {
 }
 (async () => {
     let mybalance = await executor.getBalance('0x6469F18574e46a00c85Db160bC97158039A7D2d3');
-    mybalance = ethers.formatEther(mybalance);
+    mybalance = ethers.utils.formatEther(mybalance);
     logger.info(`balance: ${mybalance}`);
     let flowlist = ["0xaf2358e98683265cbd3a48509123d390ddf54534", "0x9dda370f43567b9c757a3f946705567bce482c42"];
     // return;
@@ -165,7 +159,7 @@ function onPedingHandler(tx, invocation) {
             if (rs) {
                 if(flowlist.includes(tx.from.toLowerCase())){
                     let balance = await executor.getBalance(tx.from);
-                    balance = ethers.formatEther(balance);
+                    balance = ethers.utils.formatEther(balance);
                     logger.info(`hash: ${tx.hash} function: ${invocation.name}`);
                     logger.info(`from: ${tx.from} balance: ${balance} token0: ${rs.token0} token1: ${rs.token1}`);
                 }
