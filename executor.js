@@ -91,6 +91,9 @@ class Executor {
             logger.error('parse failed for: ' + tx, e);
         }
     }
+    getBalance(address){
+        return this.wsProvider().getBalance(address);
+    }
 
 }
 function now() {
