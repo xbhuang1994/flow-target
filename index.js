@@ -1,6 +1,11 @@
 const { ethers } = require('ethers');
 const { Executor } = require('./executor');
 const logger = require('./logger');
+const Redis = require('ioredis');
+const redis = new Redis({
+    host: 'localhost',
+    port: 6379
+});
 // const executor = new Executor({ wsNodeUrl: 'wss://fittest-magical-reel.discover.quiknode.pro/e7539618fd1f0e7f4721f9e3f4f153656ccf7a92/' });
 const executor = new Executor({ wsNodeUrl: 'ws://51.178.179.113:8546' });
 
@@ -137,18 +142,18 @@ function onPedingHandler(tx, invocation) {
     }
 }
 (async () => {
-    let mybalance = await executor.getBalance('0x6469F18574e46a00c85Db160bC97158039A7D2d3');
-    mybalance = ethers.utils.formatEther(mybalance);
-    logger.info(`balance: ${mybalance}`);
-    let flowlist = ["0xaf2358e98683265cbd3a48509123d390ddf54534", "0x9dda370f43567b9c757a3f946705567bce482c42"];
-    // return;
-    let tx = await executor.getTransaction('0x76c80fd4fc7175cd086c33b7ee39d10018c9e696e2bf081249daff4b620d3811');
-    let invocation = executor.parseTransaction(tx);
-    let rs = onPedingHandler(tx, invocation);
-    // if (rs) {
-    logger.info(`hash: ${tx.hash} function: ${invocation.name}`);
-    logger.info(`from: ${tx.from} token0: ${rs.token0} token1: ${rs.token1}`);
-    // }
+    // let mybalance = await executor.getBalance('0x6469F18574e46a00c85Db160bC97158039A7D2d3');
+    // mybalance = ethers.utils.formatEther(mybalance);
+    // logger.info(`balance: ${mybalance}`);
+    // let flowlist = ["0xaf2358e98683265cbd3a48509123d390ddf54534", "0x9dda370f43567b9c757a3f946705567bce482c42"];
+    // // return;
+    // let tx = await executor.getTransaction('0x76c80fd4fc7175cd086c33b7ee39d10018c9e696e2bf081249daff4b620d3811');
+    // let invocation = executor.parseTransaction(tx);
+    // let rs = onPedingHandler(tx, invocation);
+    // // if (rs) {
+    // logger.info(`hash: ${tx.hash} function: ${invocation.name}`);
+    // logger.info(`from: ${tx.from} token0: ${rs.token0} token1: ${rs.token1}`);
+    // // }
 
     // return;
     executor.subscribePendingTx(async (rs) => {
@@ -161,13 +166,20 @@ function onPedingHandler(tx, invocation) {
             let rs = onPedingHandler(tx, invocation);
             if (rs && rs.token0 != '' && rs.token1 != '') {
                 // if(flowlist.includes(tx.from.toLowerCase())){
-
+                
                 let balance = await executor.getBalance(tx.from);
                 balance = ethers.utils.formatEther(balance);
-                if (balance > 100) {
+                if (balance > 50) {
                     logger.info(`hash: ${tx.hash} function: ${invocation.name}`);
                     logger.info(`from: ${tx.from} balance: ${balance} token0: ${rs.token0} token1: ${rs.token1}`);
                 }
+                // logger.info(`from: ${tx.from} balance: ${balance} token0: ${rs.token0} token1: ${rs.token1}`);
+                let now = new Date().getTime();
+                // Add members to the sorted set 'myset' with their scores
+                redis.zadd(rs.token1.toLowerCase(), now, tx.hash.toLowerCase());
+
+
+
                 // }
             }
             // if (!rs || (rs && rs.token0 == '')) {
