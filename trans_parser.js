@@ -283,6 +283,14 @@ class TransParser {
                     paths.push(path);
                 }
                 break;
+            case "exactOutputSingle":
+                {
+                    let args = invocation.args.params;
+                    let path = new Path(args.amountInMaximum,args.amountOut);
+                    path.path = [args.tokenIn,args.tokenOut];
+                    paths.push(path);
+                }
+                break;
             default:
                 console.log(tx.hash);
                 console.log(invocation);
