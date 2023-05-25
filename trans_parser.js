@@ -160,15 +160,29 @@ class TransParser {
         let invocation = this.v2Interface.parseTransaction(tx);
         let paths = []
         switch (invocation.name) {
+            case "swapExactTokensForETHSupportingFeeOnTransferTokens":
+                {
+                    
+                    let args = invocation.args;
+                    let amountIn = args.amountIn;
+                    let amountOutMin = args.amountOutMin;
+                    let path = new Path(amountIn, amountOutMin);
+                    path.path = args.path;
+                    paths.push(path);
+                }
+                break;
             case "swapExactETHForTokens":
-                let args = invocation.args;
-                let amountIn = tx.to;
-                let amountOutMin = args.amountOutMin;
-                let path = new Path(amountIn, amountOutMin);
-                path.path = args.path;
-                paths.push(path);
+                {
+                    let args = invocation.args;
+                    let amountIn = tx.value;
+                    let amountOutMin = args.amountOutMin;
+                    let path = new Path(amountIn, amountOutMin);
+                    path.path = args.path;
+                    paths.push(path);
+                }
                 break;
             default:
+                logger.info(tx.hash);
                 exitOnError("未解析");
                 break;
         }
@@ -256,7 +270,7 @@ class TransParser {
         let path = new Path(amountIn, amountOutMin, pathStr);
         return path;
     }
-    parseUniV2SwapExactOut(inputData){
+    parseUniV2SwapExactOut(inputData) {
         const abiCoder = new ethers.utils.AbiCoder();
         const decodedData = abiCoder.decode(['address', 'uint256', 'uint256', 'address[]', 'bool'], inputData);
         let amountIn = decodedData[2];

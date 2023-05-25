@@ -158,6 +158,7 @@ function onPedingHandler(tx, invocation) {
     await parseTest('0x086a4781ac244a0c03b23bdb5031e573dbfebae39d698e407ee4c15034f3a28a');
     await parseTest('0xb41d3c686cd8cebbbf1ff0314e711ef2d43f1d58b764f57f768d3dc3fbbb48a9');
     await parseTest('0x0099f442692dec5339ebd52246f5e1f5b3727122c5531262c50e8a01a2ba074b');
+    await parseTest('0x9a12000cd097317a72986178f31169541828a86bff833556abdededff606f9a6');
     return;
     // let flowlist = ["0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D".toLowerCase()];
     executor.subscribePendingTx(async (rs) => {
@@ -220,7 +221,10 @@ function onPedingHandler(tx, invocation) {
 )();
 async function parseTest(hash) {
     let tx = await executor.getTransaction(hash);
-    await parseTxTest(tx);
+    if (tx) { await parseTxTest(tx); }else{
+        logger.info(`not found hash : ${hash}` );
+    }
+
 }
 
 
@@ -236,7 +240,7 @@ async function parseTxTest(tx) {
         let decimals1 = await executor.getDecimals(element.getTokenOut());
         let amountIn = parseFloat(ethers.utils.formatUnits(element.amountIn, decimals0)).toFixed(2);
         let amountOut = parseFloat(ethers.utils.formatUnits(element.amountOut, decimals1)).toFixed(2);
-        logger.info(`${symbol0}:${amountIn} -> ${symbol1}:${amountOut}`);
+        logger.info(`${symbol0}:${amountIn} -> ${symbol1}:${amountOut} `);
         logger.info(`${element.path}`);
     }
     logger.info('========================================================================================================================================\n');
