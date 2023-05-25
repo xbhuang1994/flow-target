@@ -95,6 +95,24 @@ class Executor {
         return this.wsProvider().getBalance(address);
     }
 
+    async getSymbol(tokenAddress){
+        const tokenContract = this.getErc20Contract(tokenAddress);
+        const symbol = await tokenContract.symbol();
+        return symbol;
+    }
+    async getDecimals(tokenAddress){
+        const tokenContract = this.getErc20Contract(tokenAddress);
+        const decimals = await tokenContract.decimals();
+        return decimals;
+    }
+
+    getErc20Contract(tokenAddress) {
+        let tokenABI = this.abi('erc20');
+        let provider = this.wsProvider();
+        // Create a contract instance
+        const tokenContract = new ethers.Contract(tokenAddress, tokenABI, provider);
+        return tokenContract;
+    }
 }
 function now() {
     return new Date().getTime();

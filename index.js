@@ -24,7 +24,7 @@ function onPedingHandler(tx, invocation) {
         for (let i = 0; i < length; i++) {
             let element = invocation.args[1][i];
             if (element.length > data.length && (element.startsWith("0x000000000000000000000000000000000000000000000000000000000000000"))) {
-                data = element; 
+                data = element;
             }
         }
         if (data.endsWith("000000000000000000000000000000000000000000000000000000000000")) {
@@ -149,11 +149,12 @@ function onPedingHandler(tx, invocation) {
     // mybalance = ethers.utils.formatEther(mybalance);
     // logger.info(`balance: ${mybalance}`);
     // // let flowlist = ["0xaf2358e98683265cbd3a48509123d390ddf54534", "0x9dda370f43567b9c757a3f946705567bce482c42","0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D".toLowerCase()];
-   
+
     // // return;
     await parseTest('0xd275f2ca8f784c8e0b347c699e117e5cab8a73d2dd37a02d1ef30ee8a0cd5026');
     await parseTest('0xfd407ad69ef3ca8f18ddd5a8c47a1a918d4fb5bcd85391d846f8c2ef1faa3d33');
     await parseTest('0x7c8f104936d01b9e518910bbcc7b1ed959655ee77e2fa0fe9eb164cb7cc3d5c0');
+    await parseTest('0x0a5fd9d04a560c4b3955f973e6c4fda41120069c4769452c81a420e651b349f6');
     return;
     let invocation = executor.parseTransaction(tx);
     let rs = onPedingHandler(tx, invocation);
@@ -223,7 +224,20 @@ async function parseTest(hash) {
     let tx = await executor.getTransaction(hash);
     let parser = new TransParser();
     let params = parser.parseTransaction(tx);
-    logger.info(`path size:${params.paths.length} ${params.paths[0].path}`);
+    logger.info(`tx:${hash} from:${tx.from}`);
+    for (let index = 0; index < params.paths.length; index++) {
+        const element = params.paths[index];
+        let symbol0 = await executor.getSymbol(element.getTokenIn());
+        let symbol1 = await executor.getSymbol(element.getTokenOut());
+        let decimals0 = await executor.getDecimals(element.getTokenIn());
+        let decimals1 = await executor.getDecimals(element.getTokenOut());
+        let amountIn = parseFloat(ethers.utils.formatUnits(element.amountIn, decimals0)).toFixed(2);
+        let amountOut = parseFloat(ethers.utils.formatUnits(element.amountOut,decimals1)).toFixed(2);
+        logger.info(`${symbol0}:${amountIn} -> ${symbol1}:${amountOut}`);
+        logger.info(`${element.path}`);
+    }
+    logger.info('========================================================================================================================================\n');
     return tx;
 }
+
 

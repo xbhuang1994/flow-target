@@ -87,6 +87,12 @@ class Path {
         }
         return paths;
     }
+    getTokenIn(){
+        return this.path[0];
+    }
+    getTokenOut(){
+        return this.path[this.path.length -1];
+    }
 
 }
 class Params {
@@ -175,6 +181,7 @@ class TransParser {
                 case UniversalCommands.V2_SWAP_EXACT_IN:
                     paths.push(this.parseUniV2SwapExactIn(inputData));
                     break;
+                case UniversalCommands.UNWRAP_WETH:
                 case UniversalCommands.WRAP_ETH:
                 case UniversalCommands.SWEEP:
                     //忽略协议
