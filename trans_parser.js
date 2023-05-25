@@ -249,6 +249,15 @@ class TransParser {
                     }
                 });
                 break;
+            case "exactInputSingle":
+                {
+                    let args = invocation.args.params;
+                    console.log(args);
+                    let path = new Path(args.amountIn,args.amountOutMinimum);
+                    path.path = [args.tokenIn,args.tokenOut];
+                    paths.push(path);
+                }
+                break;
             default:
                 console.log(tx.hash);
                 console.log(invocation);
