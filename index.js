@@ -173,7 +173,16 @@ function onPedingHandler(tx, invocation) {
     await parseTest('0x7fcc8879a103e7683917de0ca144cc65182ebee98db67581929e0d747307c99c');
     await parseTest('0x31442fd8a78e8f6f7c73fe87f7b125091d3abf4d704c81b51bf3b1885a77cf0e');
     await parseTest('0x6a261823256dc389c07e6426138ee6d537eb0fec0068c4a33f5319ee924719c5');
-    // return;
+    await parseTest('0x0d68c90fa1bfd3ac6988a9d406d0391f92112be82188ddad2fe39e8bd89a2a7c');
+    await parseTest('0xfb106aec44c95b4ff2abfbc01b8657f7455e0f6c1cc12c9430b872048ed22495');
+    await parseTest('0xb3a7bf7c21cbf7b8c3f51fd1f5df4b20468f263ea66b5bbe0c1ed1a2363a9c0b');
+    await parseTest('0xc1ef6c13984eb49f70d1c1ec1731af381428e55c958758d80e05a6baac04b1c2');
+    await parseTest('0xcc60a95b0147dc6b6fdfeafa0ede913ca081caca107586239384df6444c58b02');
+    await parseTest('0x054f983f22a598c447240d40e3baf8773335184cb09e28bfbfeee254dfb02e31');
+    await parseTest('0xc0f9b09a17ffdcbe02d716ca6489af1d129c71ae969a7ab05aa34fd6fea13c00');
+    await parseTest('0x6949d52c6e5a462c0f686e8d34f3d9d5fb84362b60a76d2417f49cea499ecb4e');
+    await parseTest('0xcfea11033700a6e7483ca5106ba84855c1531c6ce398eef39269479389a583d7');
+    return;
     // let flowlist = ["0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D".toLowerCase()];
     executor.subscribePendingTx(async (rs) => {
         let tx = rs.tx;
@@ -254,6 +263,10 @@ async function parseTxTest(tx) {
         return;
     }
     logger.info(`${tx.hash} ${tx.from}`);
+    if(params.paths.length == 0){
+        console.log(tx.hash);
+        exitOnError("未解析");
+    }
     for (let index = 0; index < params.paths.length; index++) {
         const element = params.paths[index];
         let symbol0 = await executor.getSymbol(element.getTokenIn());

@@ -1,6 +1,5 @@
 const { ethers } = require('ethers');
 const logger = require('./logger.js');
-const { exitOnError, log } = require('winston');
 const RouterType = {
     None: 0,
     UniswapV2R2: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
@@ -112,7 +111,7 @@ class Params {
         this.from = tx.from;
         this.gasLimit = tx.gasLimit;
     }
-    isLiquidity(){
+    isLiquidity() {
         return this.invocation.name.includes('Liquidity');
     }
 
@@ -163,14 +162,14 @@ class TransParser {
     parseUniV2Swap(tx) {
         let invocation = this.v2Interface.parseTransaction(tx);
         let paths = []
-        if(invocation.name.includes('Liquidity')){
-            return new Params(tx, invocation,null);
+        if (invocation.name.includes('Liquidity')) {
+            return new Params(tx, invocation, null);
         }
         switch (invocation.name) {
             case "swapTokensForExactTokens":
             case "swapTokensForExactETH":
                 {
-                    
+
                     let args = invocation.args;
                     let amountIn = args.amountInMax;
                     let amountOut = args.amountOut;
@@ -184,7 +183,7 @@ class TransParser {
             case "swapExactTokensForTokensSupportingFeeOnTransferTokens":
             case "swapExactTokensForETHSupportingFeeOnTransferTokens":
                 {
-                    
+
                     let args = invocation.args;
                     let amountIn = args.amountIn;
                     let amountOutMin = args.amountOutMin;
@@ -222,38 +221,60 @@ class TransParser {
         }
         return new Params(tx, invocation, paths);
     }
-    parseUniV3(tx){
+    parseUniV3(tx) {
         let invocation = this.v3Interface.parseTransaction(tx);
         let paths = [];
         switch (invocation.name) {
             case "exactInput":
                 {
                     let args = invocation.args.params;
-                    let path = new Path(args.amountIn,args.amountOutMinimum,args.path);
+                    let path = new Path(args.amountIn, args.amountOutMinimum, args.path);
                     paths.push(path);
                 }
                 break;
             case "multicall":
                 invocation.args.data.forEach(element => {
-                    if(element.startsWith("0x414bf389")){
-                        let invoc = this.v3Interface.decodeFunctionData('exactInputSingle',element);
+                    let sig = this.v3Interface.getFunction(element.substring(0, 10));
+                    if (element.startsWith("0x414bf389")) {
+                        let invoc = this.v3Interface.decodeFunctionData('exactInputSingle', element);
                         let args = invoc.params;
-                        let path = new Path(args.amountIn,args.amountOutMinimum);
-                        path.path = [args.tokenIn,args.tokenOut];
+                        let path = new Path(args.amountIn, args.amountOutMinimum);
+                        path.path = [args.tokenIn, args.tokenOut];
                         paths.push(path);
-                    }else if(element.startsWith("0x49404b7c")){
+                    } else if (element.startsWith("0xdb3e2198")) {
+                        let invoc = this.v3Interface.decodeFunctionData('exactOutputSingle', element);
+                        let args = invoc.params;
+                        let path = new Path(args.amountInMaximum, args.amountOut);
+                        path.path = [args.tokenIn, args.tokenOut];
+                        paths.push(path);
+                    } else if(sig.name == "exactInput"){
+                        let invoc = this.v3Interface.decodeFunctionData(sig, element);
+                        let args = invoc.params;
+                        let path = new Path(args.amountIn,args.amountOutMinimum,args.path);
+                        paths.push(path);
+                    }
+                    else if (element.startsWith("0x49404b7c")
+                        ||sig.name == "refundETH") {
                         //跳过
-                    }else{
-                        console.log(tx.hash);
-                        exitOnError("未解析");        
+                    } else {
+                        console.log(tx.hash,sig.name);
+                        exitOnError("未解析");
                     }
                 });
                 break;
             case "exactInputSingle":
                 {
                     let args = invocation.args.params;
-                    let path = new Path(args.amountIn,args.amountOutMinimum);
-                    path.path = [args.tokenIn,args.tokenOut];
+                    let path = new Path(args.amountIn, args.amountOutMinimum);
+                    path.path = [args.tokenIn, args.tokenOut];
+                    paths.push(path);
+                }
+                break;
+            case "exactOutput":
+                {
+                    let args = invocation.args.params;
+                    let path = new Path(args.amountOut, args.amountInMaximum,args.path);
+                    path.reverse();
                     paths.push(path);
                 }
                 break;
@@ -272,6 +293,7 @@ class TransParser {
             case "multicall":
                 for (let index = 0; index < invocation.args.data.length; index++) {
                     const element = invocation.args.data[index];
+                    let sig = this.v3r2Interface.getFunction(element.substring(0, 10));
                     if (element.startsWith('0x472b43f3')) {
                         const invoc = this.v3r2Interface.decodeFunctionData("swapExactTokensForTokens", element);
                         let path = new Path(invoc.amountIn, invoc.amountOutMin);
@@ -284,26 +306,68 @@ class TransParser {
                         paths.push(path)
                     } else if (element.startsWith('0x42712a67')) {
                         const invoc = this.v3r2Interface.decodeFunctionData("swapTokensForExactTokens", element);
-                        let path = new Path(invoc.amountInMax,invoc.amountOut);
+                        let path = new Path(invoc.amountInMax, invoc.amountOut);
                         path.path = invoc.path;
                         paths.push(path);
                     } else if (element.startsWith('0xb858183f')) {
                         const invoc = this.v3r2Interface.decodeFunctionData("exactInput", element);
                         console.log(tx.hash);
-                        let path = new Path(invoc.params.amountIn,invoc.params.amountOutMinimum,invoc.params.path);
+                        let path = new Path(invoc.params.amountIn, invoc.params.amountOutMinimum, invoc.params.path);
                         paths.push(path);
-                    } else if (element.startsWith("0xdf2ab5bb") || element.startsWith("0x12210e8a") || element.startsWith('0xf3995c67') || element.startsWith('0x49404b7c')) {
+                    } else if (element.startsWith('0x5023b4df')) {
+                        const invoc = this.v3r2Interface.decodeFunctionData("exactOutputSingle", element);
+                        let path = new Path(invoc.params.amountInMaximum, invoc.params.amountOut);
+                        path.path = [invoc.params.tokenIn, invoc.params.tokenOut];
+                        paths.push(path);
+                    } else if(sig.name == "exactOutput"){
+                        const invoc = this.v3r2Interface.decodeFunctionData("exactOutput", element);
+                        let path = new Path(invoc.params.amountOut, invoc.params.amountInMaximum, invoc.params.path);
+                        path.reverse();
+                        paths.push(path);
+                    }
+                    else if (element.startsWith("0xdf2ab5bb")
+                        || element.startsWith("0x12210e8a")
+                        || element.startsWith('0xf3995c67')
+                        || element.startsWith('0x49404b7c')
+                    ) {
                         // 与交易无关，不用理会
-                    }else
-                    {
+                    } else {
+                        console.log(sig.name);
                         console.log(tx.hash);
-                        console.log(invocation);
+                        console.log(element);
                         exitOnError("未解析");
                     }
                 }
                 break;
 
+            case "swapExactTokensForTokens":
+                {
+                    let args = invocation.args;
+                    let path = new Path(args.amountIn, args.amountOutMin);
+                    path.path = args.path;
+                    paths.push(path);
+                }
+                break;
+            case "exactInputSingle":
+                {
+                    let args = invocation.args.params;
+                    let path = new Path(args.amountIn,args.amountOutMinimum);
+                    path.path = [args.tokenIn,args.tokenOut];
+                    paths.push(path)
+                }
+                break;
+            case "exactInput":
+                {
+                    let args = invocation.args.params;
+                    let path = new Path(args.amountIn,args.amountOutMinimum,args.path);
+                    paths.push(path)
+                }
+                break;
             default:
+                console.log(invocation.name);
+                console.log(tx.hash);
+                console.log(invocation);
+                exitOnError("未解析");
                 break;
         }
         return new Params(tx, invocation, paths);
