@@ -50,10 +50,10 @@ class Executor {
             var txReceived = now();
 
             var tx = await this.getTransaction(hash);
-            if (now() - txReceived > (delayLimit || 5000)) {
-                this.stallCount++;
-                return;
-            }
+            // if (now() - txReceived > (delayLimit || 5000)) {
+            //     this.stallCount++;
+            //     return;
+            // }
 
             if (!(tx && tx.to && tx.data != '0x')) {
                 this.dropCount++;

@@ -161,13 +161,27 @@ function onPedingHandler(tx, invocation) {
     await parseTest('0x9a12000cd097317a72986178f31169541828a86bff833556abdededff606f9a6');
     await parseTest('0xcf0a7e5ce66b877406d2be6b1b811bd123a8c20b627b67fcd51674d561a6dc13');
     await parseTest('0x9560024afd625fcb407ebabc903f32f7f78d5c7dddfc48912e768330d7ac83ec');
-    return;
+    await parseTest('0xe03244c329be5b17d81af260fae5eedb3ba04e76605a2bca6696415e0e092e28');
+    await parseTest('0x1c7da7a6fbc57b43454a343ab7f9b55b3e7942f9b96b1eb24d9908f8e23d3538');
+    await parseTest('0xbffbe60884279cd3b1179dfbca62128462792d16a9597c92155d2601eac50f78');
+    await parseTest('0xde8d830d4bf823ff2988adb98266ba09fdd6b517d91c5c835d59577f3e0a090c');
+    await parseTest('0x20db45788e912141da7b89bafebcbb1229337bb31da2135c6fc31d5f3458a6c5');
+    await parseTest('0x719f288e47b08a46f0e60da8e6b9c6e06efc682e8415d832efbc6deb53e3c1d0');
+    await parseTest('0x90b9d728bc3cba9f05bdd8cac892ecc957a944425214ef437226dc7d9b32b660');
+    await parseTest('0x72fae6359ede7d78acb95a313554c336901d7367a59ea461da94e9a41d95ae4f');
+    await parseTest('0x7159edf64f292f4a5351c8cd066c9cdb248a1eee26a731974f90fc1bbd7758b2');
+    await parseTest('0x7fcc8879a103e7683917de0ca144cc65182ebee98db67581929e0d747307c99c');
+    // return;
     // let flowlist = ["0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D".toLowerCase()];
     executor.subscribePendingTx(async (rs) => {
         let tx = rs.tx;
         let invocation = rs.invocation;
         if (!invocation) {
             return
+        }
+        let gasPrice = ethers.utils.formatUnits(tx.gasPrice,"gwei");
+        if(gasPrice < 30){
+            return;
         }
         parseTxTest(tx);
 
@@ -233,6 +247,10 @@ async function parseTest(hash) {
 async function parseTxTest(tx) {
     let parser = new TransParser();
     let params = parser.parseTransaction(tx);
+    if(params.isLiquidity()){
+        logger.info("isLiquidity");
+        return;
+    }
     logger.info(`${tx.hash} ${tx.from}`);
     for (let index = 0; index < params.paths.length; index++) {
         const element = params.paths[index];
@@ -240,8 +258,8 @@ async function parseTxTest(tx) {
         let symbol1 = await executor.getSymbol(element.getTokenOut());
         let decimals0 = await executor.getDecimals(element.getTokenIn());
         let decimals1 = await executor.getDecimals(element.getTokenOut());
-        let amountIn = parseFloat(ethers.utils.formatUnits(element.amountIn, decimals0)).toFixed(2);
-        let amountOut = parseFloat(ethers.utils.formatUnits(element.amountOut, decimals1)).toFixed(2);
+        let amountIn = parseFloat(ethers.utils.formatUnits(element.amountIn, decimals0)).toFixed(4);
+        let amountOut = parseFloat(ethers.utils.formatUnits(element.amountOut, decimals1)).toFixed(4);
         logger.info(`${symbol0}:${amountIn} -> ${symbol1}:${amountOut} `);
         logger.info(`${element.path}`);
     }
