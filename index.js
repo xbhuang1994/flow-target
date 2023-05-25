@@ -183,14 +183,12 @@ function onPedingHandler(tx, invocation) {
     await parseTest('0x6949d52c6e5a462c0f686e8d34f3d9d5fb84362b60a76d2417f49cea499ecb4e');
     await parseTest('0xcfea11033700a6e7483ca5106ba84855c1531c6ce398eef39269479389a583d7');
     await parseTest('0x1bb4d7b78e648d4a4ce46da07383bfb6ea5125ee5f50e34526deea1de486d551');
+    await parseTest('0x53537187750bf176ab8ba07b21589ed672b0851d784d2f6d43feb74d0cba16b6');
+    await parseTest('0xf4c7020490fb7c833d8444ddb81e67aee065963655a3354724c976d3bddd486f');//套娃
     // return;
     // let flowlist = ["0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D".toLowerCase()];
     executor.subscribePendingTx(async (rs) => {
         let tx = rs.tx;
-        let invocation = rs.invocation;
-        if (!invocation) {
-            return
-        }
         let gasPrice = ethers.utils.formatUnits(tx.gasPrice,"gwei");
         if(gasPrice < 30){
             return;
@@ -198,6 +196,11 @@ function onPedingHandler(tx, invocation) {
         parseTxTest(tx);
 
         return
+        
+        let invocation = rs.invocation;
+        if (!invocation) {
+            return
+        }
         try {
             let rs = onPedingHandler(tx, invocation);
             if (rs && rs.token0 != '' && rs.token1 != '') {
@@ -259,11 +262,14 @@ async function parseTest(hash) {
 async function parseTxTest(tx) {
     let parser = new TransParser();
     let params = parser.parseTransaction(tx);
+    if(params == null){
+        return;
+    }
+    logger.info(`${tx.hash} ${tx.from}`);
     if(params.isLiquidity()){
         logger.info("isLiquidity");
         return;
     }
-    logger.info(`${tx.hash} ${tx.from}`);
     if(params.paths.length == 0){
         console.log(tx.hash);
         exitOnError("未解析");

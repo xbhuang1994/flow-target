@@ -151,10 +151,9 @@ class TransParser {
             case RouterType.UniswapUniversal:
                 logger.info("UniswapUniversal");
                 params = this.parseUniswapUniversal(tx);
-
                 break;
             default:
-                logger.info("不支持的协议");
+                // logger.info("不支持的协议");
                 break;
         }
         return params;
@@ -252,6 +251,12 @@ class TransParser {
                         let args = invoc.params;
                         let path = new Path(args.amountIn,args.amountOutMinimum,args.path);
                         paths.push(path);
+                    }else if(sig.name == "exactOutput"){
+                        let invoc = this.v3Interface.decodeFunctionData(sig,element);
+                        let args = invoc.params;
+                        let path = new Path(args.amountOut,args.amountInMaximum,args.path);
+                        path.reverse();
+                        paths.push(path);
                     }
                     else if (element.startsWith("0x49404b7c")
                         ||sig.name == "refundETH") {
@@ -293,50 +298,8 @@ class TransParser {
             case "multicall":
                 for (let index = 0; index < invocation.args.data.length; index++) {
                     const element = invocation.args.data[index];
-                    let sig = this.v3r2Interface.getFunction(element.substring(0, 10));
-                    if (element.startsWith('0x472b43f3')) {
-                        const invoc = this.v3r2Interface.decodeFunctionData("swapExactTokensForTokens", element);
-                        let path = new Path(invoc.amountIn, invoc.amountOutMin);
-                        path.path = invoc.path;
-                        paths.push(path);
-                    } else if (element.startsWith('0x04e45aaf')) {
-                        const invoc = this.v3r2Interface.decodeFunctionData("exactInputSingle", element);
-                        let path = new Path(invoc.params.amountIn, invoc.params.amountOutMinimum);
-                        path.path = [invoc.params.tokenIn, invoc.params.tokenOut];
-                        paths.push(path)
-                    } else if (element.startsWith('0x42712a67')) {
-                        const invoc = this.v3r2Interface.decodeFunctionData("swapTokensForExactTokens", element);
-                        let path = new Path(invoc.amountInMax, invoc.amountOut);
-                        path.path = invoc.path;
-                        paths.push(path);
-                    } else if (element.startsWith('0xb858183f')) {
-                        const invoc = this.v3r2Interface.decodeFunctionData("exactInput", element);
-                        console.log(tx.hash);
-                        let path = new Path(invoc.params.amountIn, invoc.params.amountOutMinimum, invoc.params.path);
-                        paths.push(path);
-                    } else if (element.startsWith('0x5023b4df')) {
-                        const invoc = this.v3r2Interface.decodeFunctionData("exactOutputSingle", element);
-                        let path = new Path(invoc.params.amountInMaximum, invoc.params.amountOut);
-                        path.path = [invoc.params.tokenIn, invoc.params.tokenOut];
-                        paths.push(path);
-                    } else if(sig.name == "exactOutput"){
-                        const invoc = this.v3r2Interface.decodeFunctionData("exactOutput", element);
-                        let path = new Path(invoc.params.amountOut, invoc.params.amountInMaximum, invoc.params.path);
-                        path.reverse();
-                        paths.push(path);
-                    }
-                    else if (element.startsWith("0xdf2ab5bb")
-                        || element.startsWith("0x12210e8a")
-                        || element.startsWith('0xf3995c67')
-                        || element.startsWith('0x49404b7c')
-                    ) {
-                        // 与交易无关，不用理会
-                    } else {
-                        console.log(sig.name);
-                        console.log(tx.hash);
-                        console.log(element);
-                        exitOnError("未解析");
-                    }
+                    let that = this;
+                    multicall(that,element);
                 }
                 break;
 
@@ -380,6 +343,56 @@ class TransParser {
                 break;
         }
         return new Params(tx, invocation, paths);
+
+        function multicall(that,element) {
+            let sig = that.v3r2Interface.getFunction(element.substring(0, 10));
+            if (element.startsWith('0x472b43f3')) {
+                const invoc = that.v3r2Interface.decodeFunctionData("swapExactTokensForTokens", element);
+                let path = new Path(invoc.amountIn, invoc.amountOutMin);
+                path.path = invoc.path;
+                paths.push(path);
+            } else if (element.startsWith('0x04e45aaf')) {
+                const invoc = that.v3r2Interface.decodeFunctionData("exactInputSingle", element);
+                let path = new Path(invoc.params.amountIn, invoc.params.amountOutMinimum);
+                path.path = [invoc.params.tokenIn, invoc.params.tokenOut];
+                paths.push(path);
+            } else if (element.startsWith('0x42712a67')) {
+                const invoc = that.v3r2Interface.decodeFunctionData("swapTokensForExactTokens", element);
+                let path = new Path(invoc.amountInMax, invoc.amountOut);
+                path.path = invoc.path;
+                paths.push(path);
+            } else if (element.startsWith('0xb858183f')) {
+                const invoc = that.v3r2Interface.decodeFunctionData("exactInput", element);
+                console.log(tx.hash);
+                let path = new Path(invoc.params.amountIn, invoc.params.amountOutMinimum, invoc.params.path);
+                paths.push(path);
+            } else if (element.startsWith('0x5023b4df')) {
+                const invoc = that.v3r2Interface.decodeFunctionData("exactOutputSingle", element);
+                let path = new Path(invoc.params.amountInMaximum, invoc.params.amountOut);
+                path.path = [invoc.params.tokenIn, invoc.params.tokenOut];
+                paths.push(path);
+            } else if (sig.name == "exactOutput") {
+                const invoc = that.v3r2Interface.decodeFunctionData("exactOutput", element);
+                let path = new Path(invoc.params.amountOut, invoc.params.amountInMaximum, invoc.params.path);
+                path.reverse();
+                paths.push(path);
+            } else if (sig.name == "multicall") {
+                const invoc = that.v3r2Interface.decodeFunctionData(sig, element);
+                invoc.data.forEach(element => {
+                    multicall(that,element);
+                });
+            } else if (element.startsWith("0xdf2ab5bb")
+                || element.startsWith("0x12210e8a")
+                || element.startsWith('0xf3995c67')
+                || element.startsWith('0x49404b7c')) {
+                // 与交易无关，不用理会
+            } else {
+                console.log(sig.name);
+                console.log(tx.hash);
+                console.log(element);
+                exitOnError("未解析");
+            }
+        }
     }
     parseUniswapUniversal(tx) {
         let invocation = this.uniInterface.parseTransaction(tx);

@@ -60,8 +60,8 @@ class Executor {
                 return;
             }
             let txPulled = now();
-            let invocation = await this.parseTransaction(tx);
-            callback({ tx, invocation, time: { txReceived, txPulled } });
+            // let invocation = await this.parseTransaction(tx);
+            callback({ tx, time: { txReceived, txPulled } });
         });
     }
     unsubscribePendingTx() {
@@ -88,7 +88,7 @@ class Executor {
                 return this.v3r2Interface.parseTransaction(tx);
             }
         } catch (e) {
-            logger.error('parse failed for: ' + tx, e);
+            logger.error('parse failed for: ' + tx.hash, e);
         }
     }
     getBalance(address){
