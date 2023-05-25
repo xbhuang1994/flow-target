@@ -169,6 +169,7 @@ class TransParser {
                 paths.push(path);
                 break;
             default:
+                exitOnError("未解析");
                 break;
         }
         return new Params(tx, invocation, paths);
@@ -228,6 +229,9 @@ class TransParser {
                 case UniversalCommands.V2_SWAP_EXACT_IN:
                     paths.push(this.parseUniV2SwapExactIn(inputData));
                     break;
+                case UniversalCommands.V2_SWAP_EXACT_OUT:
+                    paths.push(this.parseUniV2SwapExactOut(inputData));
+                    break;
                 case UniversalCommands.UNWRAP_WETH:
                 case UniversalCommands.WRAP_ETH:
                 case UniversalCommands.SWEEP:
@@ -250,6 +254,15 @@ class TransParser {
         let amountOutMin = decodedData[2];
         let pathStr = decodedData[3];
         let path = new Path(amountIn, amountOutMin, pathStr);
+        return path;
+    }
+    parseUniV2SwapExactOut(inputData){
+        const abiCoder = new ethers.utils.AbiCoder();
+        const decodedData = abiCoder.decode(['address', 'uint256', 'uint256', 'address[]', 'bool'], inputData);
+        let amountIn = decodedData[2];
+        let amountOutMin = decodedData[1];
+        let path = new Path(amountIn, amountOutMin);
+        path.path = decodedData[3];
         return path;
     }
     parseUniV2SwapExactIn(inputData) {
