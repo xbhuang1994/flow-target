@@ -1,12 +1,16 @@
 const { ethers } = require('ethers');
 const { Executor } = require('./executor');
 const logger = require('./logger');
+const { TransParser } = require('./trans_parser');
 // const executor = new Executor({ wsNodeUrl: 'wss://fittest-magical-reel.discover.quiknode.pro/e7539618fd1f0e7f4721f9e3f4f153656ccf7a92/' });
 const executor = new Executor({ wsNodeUrl: 'ws://51.178.179.113:8546' });
-
+const holdTokens = new Map();
+const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".toLowerCase();
 function onPedingHandler(tx, invocation) {
     let token0 = "";
     let token1 = "";
+    let amountIn = 0;
+    let amountOutMinimum = 0;
     let to = tx.to.toLowerCase();
 
     if (invocation.name == 'execute' && to == executor.v3Address) {
@@ -20,7 +24,7 @@ function onPedingHandler(tx, invocation) {
         for (let i = 0; i < length; i++) {
             let element = invocation.args[1][i];
             if (element.length > data.length && (element.startsWith("0x000000000000000000000000000000000000000000000000000000000000000"))) {
-                data = element;
+                data = element; 
             }
         }
         if (data.endsWith("000000000000000000000000000000000000000000000000000000000000")) {
@@ -73,11 +77,15 @@ function onPedingHandler(tx, invocation) {
                 let invoc = executor.v3r2Interface.decodeFunctionData("swapExactTokensForTokens(uint256, uint256, address[], address)", element);
                 token0 = invoc[2][0];
                 token1 = invoc[2][1];
+                amountIn = invoc.amountIn;
+                amountOutMinimum = invoc.amountOutMin;
                 break
             } else if (element.startsWith('0x04e45aaf')) { // 0x04e45aaf is exactInputSingle
                 let invoc = executor.v3r2Interface.decodeFunctionData("exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))", element);
                 token0 = invoc[0][0];
                 token1 = invoc[0][1]
+                amountIn = invoc.params.amountIn;
+                amountOutMinimum = invoc.params.amountOutMinimum;
                 break
             } else if (element.startsWith('0x42712a67')) { // 0x42712a67 is swapTokensForExactTokens
                 let invoc = executor.v3r2Interface.decodeFunctionData("swapTokensForExactTokens(uint256, uint256, address[], address)", element);
@@ -133,24 +141,29 @@ function onPedingHandler(tx, invocation) {
         }
     }
     return {
-        token0: token0, token1: token1
+        token0: token0, token1: token1, amountIn: amountIn, amountOutMinimum: amountOutMinimum
     }
 }
 (async () => {
-    let mybalance = await executor.getBalance('0x6469F18574e46a00c85Db160bC97158039A7D2d3');
-    mybalance = ethers.utils.formatEther(mybalance);
-    logger.info(`balance: ${mybalance}`);
-    let flowlist = ["0xaf2358e98683265cbd3a48509123d390ddf54534", "0x9dda370f43567b9c757a3f946705567bce482c42"];
-    // return;
-    let tx = await executor.getTransaction('0x76c80fd4fc7175cd086c33b7ee39d10018c9e696e2bf081249daff4b620d3811');
+    // let mybalance = await executor.getBalance('0x6469F18574e46a00c85Db160bC97158039A7D2d3');
+    // mybalance = ethers.utils.formatEther(mybalance);
+    // logger.info(`balance: ${mybalance}`);
+    // // let flowlist = ["0xaf2358e98683265cbd3a48509123d390ddf54534", "0x9dda370f43567b9c757a3f946705567bce482c42","0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D".toLowerCase()];
+   
+    // // return;
+    await parseTest('0xd275f2ca8f784c8e0b347c699e117e5cab8a73d2dd37a02d1ef30ee8a0cd5026');
+    await parseTest('0xfd407ad69ef3ca8f18ddd5a8c47a1a918d4fb5bcd85391d846f8c2ef1faa3d33');
+    await parseTest('0x7c8f104936d01b9e518910bbcc7b1ed959655ee77e2fa0fe9eb164cb7cc3d5c0');
+    return;
     let invocation = executor.parseTransaction(tx);
     let rs = onPedingHandler(tx, invocation);
     // if (rs) {
     logger.info(`hash: ${tx.hash} function: ${invocation.name}`);
-    logger.info(`from: ${tx.from} token0: ${rs.token0} token1: ${rs.token1}`);
+    logger.info(`from: ${tx.from} token0: ${rs.token0} token1: ${rs.token1} in:${ethers.utils.parseEther(rs.amountIn)} out:${ethers.utils.parseEther(rs.amountOutMinimum)}`);
     // }
 
     // return;
+    let flowlist = ["0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D".toLowerCase()];
     executor.subscribePendingTx(async (rs) => {
         let tx = rs.tx;
         let invocation = rs.invocation;
@@ -160,14 +173,35 @@ function onPedingHandler(tx, invocation) {
         try {
             let rs = onPedingHandler(tx, invocation);
             if (rs && rs.token0 != '' && rs.token1 != '') {
-                // if(flowlist.includes(tx.from.toLowerCase())){
+                if (!flowlist.includes(tx.from.toLowerCase()))
+                    return
 
                 let balance = await executor.getBalance(tx.from);
                 balance = ethers.utils.formatEther(balance);
-                if (balance > 100) {
+                //判断余额大于10 并且是Uniswap V2的交易
+                if (balance > 0) {
+                    if (rs.token0.toLowerCase() == WETH) {
+                        if (!holdTokens.has(rs.token1)) {
+                            logger.info("buy >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+                            holdTokens.set(rs.token1, 1);
+                        }
+                    } else if (rs.token1.toLowerCase() == WETH) {
+                        if (holdTokens.has(rs.token0)) {
+                            logger.info("sell <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+                            holdTokens.delete(rs.token0);
+                        }
+                    } else {
+                        logger.info("not WETH");
+                    }
                     logger.info(`hash: ${tx.hash} function: ${invocation.name}`);
-                    logger.info(`from: ${tx.from} balance: ${balance} token0: ${rs.token0} token1: ${rs.token1}`);
+                    logger.info(`from: ${tx.from} token0: ${rs.token0} token1: ${rs.token1} in:${ethers.utils.parseEther(rs.amountIn)} out:${ethers.utils.parseEther(rs.amountOutMinimum)}`);
+                    logger.info(`hold token size: ${holdTokens.size}`);
+                    if (rs.amountIn == 0) {
+                        logger.error(`未解析的函数 ${tx.hash}`);
+                    }
                 }
+
+
                 // }
             }
             // if (!rs || (rs && rs.token0 == '')) {
@@ -185,3 +219,11 @@ function onPedingHandler(tx, invocation) {
     });
 }
 )();
+async function parseTest(hash) {
+    let tx = await executor.getTransaction(hash);
+    let parser = new TransParser();
+    let params = parser.parseTransaction(tx);
+    logger.info(`path size:${params.paths.length} ${params.paths[0].path}`);
+    return tx;
+}
+
