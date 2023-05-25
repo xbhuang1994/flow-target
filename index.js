@@ -171,7 +171,8 @@ function onPedingHandler(tx, invocation) {
     await parseTest('0x72fae6359ede7d78acb95a313554c336901d7367a59ea461da94e9a41d95ae4f');
     await parseTest('0x7159edf64f292f4a5351c8cd066c9cdb248a1eee26a731974f90fc1bbd7758b2');
     await parseTest('0x7fcc8879a103e7683917de0ca144cc65182ebee98db67581929e0d747307c99c');
-    // return;
+    await parseTest('0x31442fd8a78e8f6f7c73fe87f7b125091d3abf4d704c81b51bf3b1885a77cf0e');
+    return;
     // let flowlist = ["0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D".toLowerCase()];
     executor.subscribePendingTx(async (rs) => {
         let tx = rs.tx;

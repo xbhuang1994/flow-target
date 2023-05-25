@@ -167,6 +167,7 @@ class TransParser {
             return new Params(tx, invocation,null);
         }
         switch (invocation.name) {
+            case "swapTokensForExactTokens":
             case "swapTokensForExactETH":
                 {
                     
