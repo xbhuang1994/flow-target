@@ -1,5 +1,6 @@
 const { ethers } = require('ethers');
 const logger = require('./logger.js');
+const { exitOnError } = require('winston');
 const RouterType = {
     None: 0,
     UniswapV2R2: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
@@ -62,7 +63,7 @@ const NEXT_OFFSET = ADDR_SIZE + FEE_SIZE;
 const POP_OFFSET = NEXT_OFFSET + ADDR_SIZE;
 const MULTIPLE_POOLS_MIN_LENGTH = POP_OFFSET + NEXT_OFFSET;
 class Path {
-    constructor(amountIn, amountOut,pathStr = null) {
+    constructor(amountIn, amountOut, pathStr = null) {
         if (pathStr) {
             this.pathStr = pathStr;
             this.path = this.getPaths();
@@ -87,11 +88,17 @@ class Path {
         }
         return paths;
     }
-    getTokenIn(){
+    getTokenIn() {
         return this.path[0];
     }
-    getTokenOut(){
-        return this.path[this.path.length -1];
+    getTokenOut() {
+        return this.path[this.path.length - 1];
+    }
+    reverse() {
+        this.path = this.path.reverse();
+        let amountOut = this.amountIn;
+        this.amountIn = this.amountOut;
+        this.amountOut = amountOut;
     }
 
 }
@@ -136,6 +143,7 @@ class TransParser {
                 break;
             case RouterType.UniswapV3R2:
                 logger.info("UniswapV3R2");
+                params = this.parseUniV3R2(tx);
                 break;
             case RouterType.UniswapUniversal:
                 logger.info("UniswapUniversal");
@@ -148,7 +156,7 @@ class TransParser {
         }
         return params;
     }
-    parseUniV2Swap(tx){
+    parseUniV2Swap(tx) {
         let invocation = this.v2Interface.parseTransaction(tx);
         let paths = []
         switch (invocation.name) {
@@ -156,10 +164,44 @@ class TransParser {
                 let args = invocation.args;
                 let amountIn = tx.to;
                 let amountOutMin = args.amountOutMin;
-                let path = new Path(amountIn,amountOutMin);
+                let path = new Path(amountIn, amountOutMin);
                 path.path = args.path;
                 paths.push(path);
                 break;
+            default:
+                break;
+        }
+        return new Params(tx, invocation, paths);
+    }
+    parseUniV3R2(tx) {
+        let invocation = this.v3r2Interface.parseTransaction(tx);
+        let paths = [];
+        switch (invocation.name) {
+            case "multicall":
+                for (let index = 0; index < invocation.args.data.length; index++) {
+                    const element = invocation.args.data[index];
+                    if (element.startsWith('0x472b43f3')) {
+                        const invoc = this.v3r2Interface.decodeFunctionData("swapExactTokensForTokens", element);
+                        let path = new Path(invoc.amountIn, invoc.amountOutMin);
+                        path.path = invoc.path;
+                        paths.push(path);
+                    } else if (element.startsWith('0x04e45aaf')) {
+                        const invoc = this.v3r2Interface.decodeFunctionData("exactInputSingle", element);
+                        let path = new Path(invoc.params.amountIn, invoc.params.amountOutMinimum);
+                        path.path = [invoc.params.tokenIn, invoc.params.tokenOut];
+                        paths.push(path)
+                    } else if (element.startsWith('0x42712a67')) {
+                        const invoc = this.v3r2Interface.decodeFunctionData("swapTokensForExactTokens", element);
+                        exitOnError("未解析");
+                    } else if (element.startsWith('0xb858183f')) {
+                        const invoc = this.v3r2Interface.decodeFunctionData("exactInput", element);
+                        exitOnError("未解析");
+                    } else if (element.startsWith('0xf3995c67')) {
+                        // 这是签名，不用理会
+                    }
+                }
+                break;
+
             default:
                 break;
         }
@@ -178,12 +220,18 @@ class TransParser {
                 case UniversalCommands.V3_SWAP_EXACT_IN:
                     paths.push(this.parseUniV3SwapExactIn(inputData));
                     break;
+                case UniversalCommands.V3_SWAP_EXACT_OUT:
+                    let path = this.parseUniV3SwapExactIn(inputData);
+                    path.reverse();
+                    paths.push(path);
+                    break;
                 case UniversalCommands.V2_SWAP_EXACT_IN:
                     paths.push(this.parseUniV2SwapExactIn(inputData));
                     break;
                 case UniversalCommands.UNWRAP_WETH:
                 case UniversalCommands.WRAP_ETH:
                 case UniversalCommands.SWEEP:
+                case UniversalCommands.PERMIT2_PERMIT:
                     //忽略协议
                     break;
                 default:
@@ -201,7 +249,7 @@ class TransParser {
         let amountIn = decodedData[1];
         let amountOutMin = decodedData[2];
         let pathStr = decodedData[3];
-        let path = new Path(amountIn, amountOutMin,pathStr);
+        let path = new Path(amountIn, amountOutMin, pathStr);
         return path;
     }
     parseUniV2SwapExactIn(inputData) {
