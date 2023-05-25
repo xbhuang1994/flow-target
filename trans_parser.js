@@ -246,23 +246,23 @@ class TransParser {
                         let path = new Path(args.amountInMaximum, args.amountOut);
                         path.path = [args.tokenIn, args.tokenOut];
                         paths.push(path);
-                    } else if(sig.name == "exactInput"){
+                    } else if (sig.name == "exactInput") {
                         let invoc = this.v3Interface.decodeFunctionData(sig, element);
                         let args = invoc.params;
-                        let path = new Path(args.amountIn,args.amountOutMinimum,args.path);
+                        let path = new Path(args.amountIn, args.amountOutMinimum, args.path);
                         paths.push(path);
-                    }else if(sig.name == "exactOutput"){
-                        let invoc = this.v3Interface.decodeFunctionData(sig,element);
+                    } else if (sig.name == "exactOutput") {
+                        let invoc = this.v3Interface.decodeFunctionData(sig, element);
                         let args = invoc.params;
-                        let path = new Path(args.amountOut,args.amountInMaximum,args.path);
+                        let path = new Path(args.amountOut, args.amountInMaximum, args.path);
                         path.reverse();
                         paths.push(path);
                     }
                     else if (element.startsWith("0x49404b7c")
-                        ||sig.name == "refundETH") {
+                        || sig.name == "refundETH") {
                         //跳过
                     } else {
-                        console.log(tx.hash,sig.name);
+                        console.log(tx.hash, sig.name);
                         exitOnError("未解析");
                     }
                 });
@@ -278,7 +278,7 @@ class TransParser {
             case "exactOutput":
                 {
                     let args = invocation.args.params;
-                    let path = new Path(args.amountOut, args.amountInMaximum,args.path);
+                    let path = new Path(args.amountOut, args.amountInMaximum, args.path);
                     path.reverse();
                     paths.push(path);
                 }
@@ -286,8 +286,8 @@ class TransParser {
             case "exactOutputSingle":
                 {
                     let args = invocation.args.params;
-                    let path = new Path(args.amountInMaximum,args.amountOut);
-                    path.path = [args.tokenIn,args.tokenOut];
+                    let path = new Path(args.amountInMaximum, args.amountOut);
+                    path.path = [args.tokenIn, args.tokenOut];
                     paths.push(path);
                 }
                 break;
@@ -307,41 +307,16 @@ class TransParser {
                 for (let index = 0; index < invocation.args.data.length; index++) {
                     const element = invocation.args.data[index];
                     let that = this;
-                    multicall(that,element);
+                    multicall(that, element);
                 }
                 break;
-
+            case "exactOutput":
+            case "exactOutputSingle":
             case "swapExactTokensForTokens":
-                {
-                    let args = invocation.args;
-                    let path = new Path(args.amountIn, args.amountOutMin);
-                    path.path = args.path;
-                    paths.push(path);
-                }
-                break;
             case "exactInputSingle":
-                {
-                    let args = invocation.args.params;
-                    let path = new Path(args.amountIn,args.amountOutMinimum);
-                    path.path = [args.tokenIn,args.tokenOut];
-                    paths.push(path)
-                }
-                break;
             case "exactInput":
-                {
-                    let args = invocation.args.params;
-                    let path = new Path(args.amountIn,args.amountOutMinimum,args.path);
-                    paths.push(path)
-                }
-                break;
             case "swapTokensForExactTokens":
-                {
-                    let args = invocation.args;
-                    let path = new Path(args.amountInMax, args.amountOut);
-                    path.path = args.path;
-                    paths.push(path);
-
-                }
+                multicall(this, tx.data);
                 break;
             default:
                 console.log(invocation.name);
@@ -352,7 +327,7 @@ class TransParser {
         }
         return new Params(tx, invocation, paths);
 
-        function multicall(that,element) {
+        function multicall(that, element) {
             let sig = that.v3r2Interface.getFunction(element.substring(0, 10));
             if (element.startsWith('0x472b43f3')) {
                 const invoc = that.v3r2Interface.decodeFunctionData("swapExactTokensForTokens", element);
@@ -387,7 +362,7 @@ class TransParser {
             } else if (sig.name == "multicall") {
                 const invoc = that.v3r2Interface.decodeFunctionData(sig, element);
                 invoc.data.forEach(element => {
-                    multicall(that,element);
+                    multicall(that, element);
                 });
             } else if (element.startsWith("0xdf2ab5bb")
                 || element.startsWith("0x12210e8a")
