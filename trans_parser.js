@@ -363,6 +363,15 @@ class TransParser {
                     paths.push(path)
                 }
                 break;
+            case "swapTokensForExactTokens":
+                {
+                    let args = invocation.args;
+                    let path = new Path(args.amountInMax, args.amountOut);
+                    path.path = args.path;
+                    paths.push(path);
+
+                }
+                break;
             default:
                 console.log(invocation.name);
                 console.log(tx.hash);
