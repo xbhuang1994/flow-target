@@ -140,6 +140,7 @@ class TransParser {
                 break;
             case RouterType.UniswapV3:
                 logger.info("UniswapV3");
+                params = this.parseUniV3(tx);
                 break;
             case RouterType.UniswapV3R2:
                 logger.info("UniswapV3R2");
@@ -160,6 +161,7 @@ class TransParser {
         let invocation = this.v2Interface.parseTransaction(tx);
         let paths = []
         switch (invocation.name) {
+            
             case "swapExactTokensForETHSupportingFeeOnTransferTokens":
                 {
                     
@@ -171,6 +173,7 @@ class TransParser {
                     paths.push(path);
                 }
                 break;
+            case "swapExactETHForTokensSupportingFeeOnTransferTokens":
             case "swapExactETHForTokens":
                 {
                     let args = invocation.args;
@@ -183,6 +186,25 @@ class TransParser {
                 break;
             default:
                 logger.info(tx.hash);
+                exitOnError("未解析");
+                break;
+        }
+        return new Params(tx, invocation, paths);
+    }
+    parseUniV3(tx){
+        let invocation = this.v3Interface.parseTransaction(tx);
+        let paths = [];
+        switch (invocation.name) {
+            case "exactInput":
+                {
+                    let args = invocation.args.params;
+                    let path = new Path(args.amountIn,args.amountOutMinimum,args.path);
+                    paths.push(path);
+                }
+                break;
+        
+            default:
+                console.log(invocation);
                 exitOnError("未解析");
                 break;
         }
