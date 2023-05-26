@@ -257,7 +257,8 @@ class TransParser {
                         paths.push(path);
                     }
                     else if (element.startsWith("0x49404b7c")
-                        || sig.name == "refundETH") {
+                        || sig.name == "refundETH"
+                        || sig.name == "selfPermit") {
                         //跳过
                     } else {
                         console.log(tx.hash);

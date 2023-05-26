@@ -51,6 +51,7 @@ const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".toLowerCase();
         await parseTest('0x3c9391f35d638633f98da658012077f4d0f97e3ba2d1d7795830d851ad149564');
         await parseTest('0x3ac54e850cde7b9e465cc0011e7b57c7f6afbe9aabb23d8b410a5dd78e33bbad');
         await parseTest('0x7330c1f2c7251cafe131960fa686d39d042b59469fe3799a499dead00fd70f61');
+        await parseTest('0x157304148a9ce3aa8a90019db24000d135e28500d6eb24ad4fbfa83ad10584f0');
 
     }
     executor.subscribePendingTx(async (rs) => {
