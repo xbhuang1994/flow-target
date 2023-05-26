@@ -35,45 +35,75 @@ class Executor {
         this.providers[name] = provider;
         return provider;
     }
+    subscribeNewBlockTx(callback) {
+        if (this.newBlockSubscribed) {
+            logger.debug('subscribeNewBlockTx: already subscribed');
+            return;
+        }
+        this.newBlockSubscribed = true;
+        logger.debug('subscribeNewBlockTx: proceeding');
+
+        this.wsSubscribeNewBlockProvider = new ethers.providers.WebSocketProvider(this.wsNodeUrl);
+        this.wsSubscribeNewBlockProvider.on('block', async (blockNumber) => {
+            // 获取块信息
+            const block = await this.wsProvider().getBlock(blockNumber);
+            if (block) {
+                // 获取块中的所有交易
+                const transactions = block.transactions;
+                callback({ blockNumber, transactions });
+            } else {
+                console.log(`Block ${blockNumber} not found`);
+            }
+        });
+
+    }
+    unSubscribeNewBlockTx() {
+        try {
+            logger.debug('unSubscribeNewBlockTx');
+            this.newBlockSubscribed = false;
+            this.wsSubscribeNewBlockProvider._websocket.terminate();
+        } catch (e) { }
+    }
+
     subscribePendingTx(callback, delayLimit) {
-        if (this.subscribed) {
+        if (this.pendingSubscribed) {
             logger.debug('subscribePendingTx: already subscribed');
             return;
         }
 
-        this.subscribed = true;
+        this.pendingSubscribed = true;
         logger.debug('subscribePendingTx: proceeding');
 
         this.wsSubscribeProvider = new ethers.providers.WebSocketProvider(this.wsNodeUrl);
         this.wsSubscribeProvider.on('pending', async (hash) => {
             this.count++;
             var txReceived = now();
-
             var tx = await this.getTransaction(hash);
-            // if (now() - txReceived > (delayLimit || 5000)) {
-            //     this.stallCount++;
-            //     return;
-            // }
-
             if (!(tx && tx.to && tx.data != '0x')) {
                 this.dropCount++;
                 return;
             }
             let txPulled = now();
-            // let invocation = await this.parseTransaction(tx);
             callback({ tx, time: { txReceived, txPulled } });
         });
     }
+
     unsubscribePendingTx() {
         try {
             logger.debug('unsubscribePendingTx');
-            this.subscribed = false;
+            this.pendingSubscribed = false;
             this.wsSubscribeProvider._websocket.terminate();
         } catch (e) { }
     }
 
-    getTransaction(hash) {
-        return this.wsProvider().getTransaction(hash);
+
+
+    getTransaction(txHash) {
+        return this.wsProvider().getTransaction(txHash);
+    }
+    getTransactionReceipt(txHash){
+        const receipt = this.wsProvider().getTransactionReceipt(txHash);
+        return receipt;
     }
     parseTransaction(tx) {
         let to = tx.to.toLowerCase();
@@ -84,27 +114,27 @@ class Executor {
                 return this.v3Interface.parseTransaction(tx);
             } else if (to == this.uniAddress) {
                 return this.uniInterface.parseTransaction(tx);
-            } else if( to == this.v3r2Address){
+            } else if (to == this.v3r2Address) {
                 return this.v3r2Interface.parseTransaction(tx);
             }
         } catch (e) {
             logger.error('parse failed for: ' + tx.hash, e);
         }
     }
-    getBalance(address){
+    getBalance(address) {
         return this.wsProvider().getBalance(address);
     }
 
-    async getSymbol(tokenAddress){
+    async getSymbol(tokenAddress) {
         try {
             const tokenContract = this.getErc20Contract(tokenAddress);
             const symbol = await tokenContract.symbol();
-            return symbol;   
+            return symbol;
         } catch (error) {
             return "";
         }
     }
-    async getDecimals(tokenAddress){
+    async getDecimals(tokenAddress) {
         try {
             const tokenContract = this.getErc20Contract(tokenAddress);
             const decimals = await tokenContract.decimals();

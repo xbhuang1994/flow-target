@@ -137,19 +137,15 @@ class TransParser {
         let params = null;
         switch (tx.to) {
             case RouterType.UniswapV2R2:
-                logger.debug("UniswapV2R2");
                 params = this.parseUniV2Swap(tx);
                 break;
             case RouterType.UniswapV3:
-                logger.debug("UniswapV3");
                 params = this.parseUniV3(tx);
                 break;
             case RouterType.UniswapV3R2:
-                logger.debug("UniswapV3R2");
                 params = this.parseUniV3R2(tx);
                 break;
             case RouterType.UniswapUniversal:
-                logger.debug("UniswapUniversal");
                 params = this.parseUniswapUniversal(tx);
                 break;
             default:
