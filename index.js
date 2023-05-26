@@ -1,7 +1,7 @@
 const { ethers } = require('ethers');
 const { Executor } = require('./executor');
 const logger = require('./logger');
-const { TransParser } = require('./trans_parser');
+const { TransParser } = require('./trans-parser');
 const executor = new Executor({ wsNodeUrl: 'ws://51.178.179.113:8546' });
 const holdTokens = new Map();
 const pendingSwap = new Map();
@@ -9,14 +9,8 @@ const confirmedSwap = new Map();
 const failedSwap = new Map();
 const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".toLowerCase();
 (async () => {
-    // let mybalance = await executor.getBalance('0x6469F18574e46a00c85Db160bC97158039A7D2d3');
-    // mybalance = ethers.utils.formatEther(mybalance);
-    // logger.debug(`balance: ${mybalance}`);
-    // // let flowlist = ["0xaf2358e98683265cbd3a48509123d390ddf54534", "0x9dda370f43567b9c757a3f946705567bce482c42","0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D".toLowerCase()];
-
-
-
     {
+        await parseTest('0xeaa60ebcf9324a005386104fca0591accb4575ca93e0fea0edd2a4129ebc87ef');
         await parseTest('0x1bfb4debc94210c2a0542d10381303ed6d660a76b4cf20d92a800b89802189fc');
         await parseTest('0xd275f2ca8f784c8e0b347c699e117e5cab8a73d2dd37a02d1ef30ee8a0cd5026');
         await parseTest('0xfd407ad69ef3ca8f18ddd5a8c47a1a918d4fb5bcd85391d846f8c2ef1faa3d33');
@@ -56,36 +50,43 @@ const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".toLowerCase();
         await parseTest('0xcbdc9094e22005026e296cec3d12c9ce3903efee19d92f5464235ad0257ba794');
         await parseTest('0x3c9391f35d638633f98da658012077f4d0f97e3ba2d1d7795830d851ad149564');
         await parseTest('0x3ac54e850cde7b9e465cc0011e7b57c7f6afbe9aabb23d8b410a5dd78e33bbad');
+        await parseTest('0x7330c1f2c7251cafe131960fa686d39d042b59469fe3799a499dead00fd70f61');
 
     }
     executor.subscribePendingTx(async (rs) => {
-        let tx = rs.tx;
-        let gasPrice = ethers.utils.formatUnits(tx.gasPrice, "gwei");
-        if (gasPrice < 30) {
-            return;
+        try {
+            let tx = rs.tx;
+            let gasPrice = ethers.utils.formatUnits(tx.gasPrice, "gwei");
+            if (gasPrice < 25) {
+                return;
+            }
+            let parser = new TransParser();
+            let params = parser.parseTransaction(tx);
+            if (params == null || params.isLiquidity()) {
+                return;
+            }
+            pendingSwap.set(tx.hash, params);
+            parseTxTest(tx);
+        } catch (error) {
+            logger.error(rs.tx.hash);
+            logger.error(error);
         }
-        let parser = new TransParser();
-        let params = parser.parseTransaction(tx);
-        if (params == null || params.isLiquidity()) {
-            return;
-        }
-        pendingSwap.set(tx.hash, params);
-        parseTxTest(tx);
+
     });
     executor.subscribeNewBlockTx((rs) => {
-        // let blockNumber = rs.blockNumber;
+        let blockNumber = rs.blockNumber;
         let transactions = rs.transactions;
         transactions.forEach(async hash => {
             if (pendingSwap.has(hash)) {
                 let params = pendingSwap.get(hash);
+                params.confirmedTime = new Date().getTime();
                 confirmedSwap.set(hash, params);
                 pendingSwap.delete(hash);
                 onSwapConfirmed(hash, params);
             }
         });
-        logger.info(`Pending Size: ${pendingSwap.size} Confiremed Size ${confirmedSwap.size}`);
+        logger.info(`BlockNumber: ${blockNumber} Pending Size: ${pendingSwap.size} Confiremed Size:${confirmedSwap.size}`);
     })
-
 }
 )();
 async function onSwapConfirmed(hash, params) {
@@ -98,6 +99,10 @@ async function onSwapConfirmed(hash, params) {
         }
     }
 }
+
+
+
+
 async function parseTest(hash) {
     let tx = await executor.getTransaction(hash);
     if (tx) { await parseTxTest(tx); } else {
@@ -118,7 +123,8 @@ async function parseTxTest(tx) {
     }
     if (params.paths.length == 0) {
         console.log(tx.hash);
-        exitOnError("未解析");
+        // exitOnError("未解析");
+        logger.error('非正常交易');
     }
     for (let index = 0; index < params.paths.length; index++) {
         const element = params.paths[index];
@@ -127,7 +133,7 @@ async function parseTxTest(tx) {
         let decimals0 = await executor.getDecimals(element.getTokenIn());
         let decimals1 = await executor.getDecimals(element.getTokenOut());
         if (symbol0 == "" || symbol1 == "") {
-            logger.error('not found symbol');
+            logger.error(`not found symbol ${element.getTokenIn()} ${element.getTokenOut()}`);
         }
         let amountIn = parseFloat(ethers.utils.formatUnits(element.amountIn, decimals0)).toFixed(4);
         let amountOut = parseFloat(ethers.utils.formatUnits(element.amountOut, decimals1)).toFixed(4);

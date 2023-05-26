@@ -103,13 +103,16 @@ class Path {
 }
 class Params {
     constructor(tx, invocation, paths) {
-        this.tx = tx;
-        this.invocation = invocation;
+        this.hash = tx.hash;
         this.routerType = tx.to;
         this.paths = paths;
         this.gasPrice = tx.gasPrice;
         this.from = tx.from;
         this.gasLimit = tx.gasLimit;
+        this.firstTime = new Date().getTime();
+        this.confirmedTime = 0;
+        this.tx = tx;
+        this.invocation = invocation;
     }
     isLiquidity() {
         return this.invocation.name.includes('Liquidity');
@@ -286,6 +289,9 @@ class TransParser {
                     paths.push(path);
                 }
                 break;
+            case "increaseLiquidity":
+            case "refundETH":
+                break;
             default:
                 console.log(tx.hash);
                 exitOnError("未解析");
@@ -360,10 +366,14 @@ class TransParser {
                 || element.startsWith('0xf3995c67')
                 || element.startsWith('0x49404b7c')
                 || sig.name == "sweepTokenWithFee"
-                || sig.name == "selfPermitAllowed") {
+                || sig.name == "selfPermitAllowed"
+                || sig.name == "wrapETH"
+                || sig.name == "increaseLiquidity"
+                || sig.name == "unwrapWETH9"
+                || sig.name == "sweepToken") {
                 // 与交易无关，不用理会
             } else {
-                console.log(tx.hash);
+                console.log(tx.hash,sig.name);
                 exitOnError("未解析");
             }
         }
