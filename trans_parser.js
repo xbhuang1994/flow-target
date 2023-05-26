@@ -367,7 +367,8 @@ class TransParser {
             } else if (element.startsWith("0xdf2ab5bb")
                 || element.startsWith("0x12210e8a")
                 || element.startsWith('0xf3995c67')
-                || element.startsWith('0x49404b7c')) {
+                || element.startsWith('0x49404b7c')
+                || sig.name == "sweepTokenWithFee") {
                 // 与交易无关，不用理会
             } else {
                 console.log(sig.name);
