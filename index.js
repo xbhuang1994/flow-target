@@ -137,7 +137,7 @@ function onPedingHandler(tx, invocation) {
         token0 = '0x' + data.slice(-40);
     } else {
         if (invocation.name.indexOf('Liquidity') == 0) {
-            logger.info(`${tx.hash}, ${invocation.name}, not implemented ==============`);
+            logger.debug(`${tx.hash}, ${invocation.name}, not implemented ==============`);
         }
     }
     return {
@@ -147,9 +147,9 @@ function onPedingHandler(tx, invocation) {
 (async () => {
     // let mybalance = await executor.getBalance('0x6469F18574e46a00c85Db160bC97158039A7D2d3');
     // mybalance = ethers.utils.formatEther(mybalance);
-    // logger.info(`balance: ${mybalance}`);
+    // logger.debug(`balance: ${mybalance}`);
     // // let flowlist = ["0xaf2358e98683265cbd3a48509123d390ddf54534", "0x9dda370f43567b9c757a3f946705567bce482c42","0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D".toLowerCase()];
-
+    await parseTest('0x1bfb4debc94210c2a0542d10381303ed6d660a76b4cf20d92a800b89802189fc');
     await parseTest('0xd275f2ca8f784c8e0b347c699e117e5cab8a73d2dd37a02d1ef30ee8a0cd5026');
     await parseTest('0xfd407ad69ef3ca8f18ddd5a8c47a1a918d4fb5bcd85391d846f8c2ef1faa3d33');
     await parseTest('0x7c8f104936d01b9e518910bbcc7b1ed959655ee77e2fa0fe9eb164cb7cc3d5c0');
@@ -187,18 +187,18 @@ function onPedingHandler(tx, invocation) {
     await parseTest('0xf4c7020490fb7c833d8444ddb81e67aee065963655a3354724c976d3bddd486f');//套娃
     await parseTest('0xcbdc9094e22005026e296cec3d12c9ce3903efee19d92f5464235ad0257ba794');
     await parseTest('0x3c9391f35d638633f98da658012077f4d0f97e3ba2d1d7795830d851ad149564');
-    // return;
+    await parseTest('0x3ac54e850cde7b9e465cc0011e7b57c7f6afbe9aabb23d8b410a5dd78e33bbad');
     // let flowlist = ["0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D".toLowerCase()];
     executor.subscribePendingTx(async (rs) => {
         let tx = rs.tx;
-        let gasPrice = ethers.utils.formatUnits(tx.gasPrice,"gwei");
-        if(gasPrice < 30){
+        let gasPrice = ethers.utils.formatUnits(tx.gasPrice, "gwei");
+        if (gasPrice < 30) {
             return;
         }
         parseTxTest(tx);
 
         return
-        
+
         let invocation = rs.invocation;
         if (!invocation) {
             return
@@ -215,20 +215,20 @@ function onPedingHandler(tx, invocation) {
                 if (balance > 0) {
                     if (rs.token0.toLowerCase() == WETH) {
                         if (!holdTokens.has(rs.token1)) {
-                            logger.info("buy >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+                            logger.debug("buy >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
                             holdTokens.set(rs.token1, 1);
                         }
                     } else if (rs.token1.toLowerCase() == WETH) {
                         if (holdTokens.has(rs.token0)) {
-                            logger.info("sell <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+                            logger.debug("sell <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
                             holdTokens.delete(rs.token0);
                         }
                     } else {
-                        logger.info("not WETH");
+                        logger.debug("not WETH");
                     }
-                    logger.info(`hash: ${tx.hash} function: ${invocation.name}`);
-                    logger.info(`from: ${tx.from} token0: ${rs.token0} token1: ${rs.token1} in:${ethers.utils.parseEther(rs.amountIn)} out:${ethers.utils.parseEther(rs.amountOutMinimum)}`);
-                    logger.info(`hold token size: ${holdTokens.size}`);
+                    logger.debug(`hash: ${tx.hash} function: ${invocation.name}`);
+                    logger.debug(`from: ${tx.from} token0: ${rs.token0} token1: ${rs.token1} in:${ethers.utils.parseEther(rs.amountIn)} out:${ethers.utils.parseEther(rs.amountOutMinimum)}`);
+                    logger.debug(`hold token size: ${holdTokens.size}`);
                     if (rs.amountIn == 0) {
                         logger.error(`未解析的函数 ${tx.hash}`);
                     }
@@ -238,14 +238,14 @@ function onPedingHandler(tx, invocation) {
                 // }
             }
             // if (!rs || (rs && rs.token0 == '')) {
-            //     logger.info(`hash: ${tx.hash} function: ${invocation.name}`);
-            //     logger.info(`from: ${tx.from} token0: ${rs.token0} token1: ${rs.token1}`);
+            //     logger.debug(`hash: ${tx.hash} function: ${invocation.name}`);
+            //     logger.debug(`from: ${tx.from} token0: ${rs.token0} token1: ${rs.token1}`);
             // }
 
 
         } catch (error) {
-            logger.info(tx.hash);
-            logger.info(error);
+            logger.debug(tx.hash);
+            logger.debug(error);
             // (tx.hash, 'undecode!!!', error);
         }
 
@@ -254,8 +254,8 @@ function onPedingHandler(tx, invocation) {
 )();
 async function parseTest(hash) {
     let tx = await executor.getTransaction(hash);
-    if (tx) { await parseTxTest(tx); }else{
-        logger.info(`not found hash : ${hash}` );
+    if (tx) { await parseTxTest(tx); } else {
+        logger.debug(`not found hash : ${hash}`);
     }
 
 }
@@ -264,15 +264,15 @@ async function parseTest(hash) {
 async function parseTxTest(tx) {
     let parser = new TransParser();
     let params = parser.parseTransaction(tx);
-    if(params == null){
+    if (params == null) {
         return;
     }
-    logger.info(`${tx.hash} ${tx.from}`);
-    if(params.isLiquidity()){
-        logger.info("isLiquidity");
+    logger.debug(`${tx.hash} ${tx.from}`);
+    if (params.isLiquidity()) {
+        logger.debug("isLiquidity");
         return;
     }
-    if(params.paths.length == 0){
+    if (params.paths.length == 0) {
         console.log(tx.hash);
         exitOnError("未解析");
     }
@@ -282,11 +282,15 @@ async function parseTxTest(tx) {
         let symbol1 = await executor.getSymbol(element.getTokenOut());
         let decimals0 = await executor.getDecimals(element.getTokenIn());
         let decimals1 = await executor.getDecimals(element.getTokenOut());
+        if (symbol0 == "" || symbol1 == "") {
+            logger.error('not found symbol');
+        }
         let amountIn = parseFloat(ethers.utils.formatUnits(element.amountIn, decimals0)).toFixed(4);
         let amountOut = parseFloat(ethers.utils.formatUnits(element.amountOut, decimals1)).toFixed(4);
-        logger.info(`${symbol0}:${amountIn} -> ${symbol1}:${amountOut} `);
-        logger.info(`${element.path}`);
+        logger.debug(`${symbol0}:${amountIn} -> ${symbol1}:${amountOut} `);
+        logger.debug(`${element.path}`);
+
     }
-    logger.info('========================================================================================================================================\n');
+    logger.debug('========================================================================================================================================\n');
 }
 

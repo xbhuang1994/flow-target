@@ -137,19 +137,19 @@ class TransParser {
         let params = null;
         switch (tx.to) {
             case RouterType.UniswapV2R2:
-                logger.info("UniswapV2R2");
+                logger.debug("UniswapV2R2");
                 params = this.parseUniV2Swap(tx);
                 break;
             case RouterType.UniswapV3:
-                logger.info("UniswapV3");
+                logger.debug("UniswapV3");
                 params = this.parseUniV3(tx);
                 break;
             case RouterType.UniswapV3R2:
-                logger.info("UniswapV3R2");
+                logger.debug("UniswapV3R2");
                 params = this.parseUniV3R2(tx);
                 break;
             case RouterType.UniswapUniversal:
-                logger.info("UniswapUniversal");
+                logger.debug("UniswapUniversal");
                 params = this.parseUniswapUniversal(tx);
                 break;
             default:
@@ -213,8 +213,7 @@ class TransParser {
                 }
                 break;
             default:
-                logger.info(tx);
-                logger.info(tx.hash);
+                logger.debug(tx.hash);
                 exitOnError("未解析");
                 break;
         }
@@ -262,7 +261,7 @@ class TransParser {
                         || sig.name == "refundETH") {
                         //跳过
                     } else {
-                        console.log(tx.hash, sig.name);
+                        console.log(tx.hash);
                         exitOnError("未解析");
                     }
                 });
@@ -293,7 +292,6 @@ class TransParser {
                 break;
             default:
                 console.log(tx.hash);
-                console.log(invocation);
                 exitOnError("未解析");
                 break;
         }
@@ -319,9 +317,7 @@ class TransParser {
                 multicall(this, tx.data);
                 break;
             default:
-                console.log(invocation.name);
                 console.log(tx.hash);
-                console.log(invocation);
                 exitOnError("未解析");
                 break;
         }
@@ -346,7 +342,6 @@ class TransParser {
                 paths.push(path);
             } else if (element.startsWith('0xb858183f')) {
                 const invoc = that.v3r2Interface.decodeFunctionData("exactInput", element);
-                console.log(tx.hash);
                 let path = new Path(invoc.params.amountIn, invoc.params.amountOutMinimum, invoc.params.path);
                 paths.push(path);
             } else if (element.startsWith('0x5023b4df')) {
@@ -368,12 +363,11 @@ class TransParser {
                 || element.startsWith("0x12210e8a")
                 || element.startsWith('0xf3995c67')
                 || element.startsWith('0x49404b7c')
-                || sig.name == "sweepTokenWithFee") {
+                || sig.name == "sweepTokenWithFee"
+                || sig.name == "selfPermitAllowed") {
                 // 与交易无关，不用理会
             } else {
-                console.log(sig.name);
                 console.log(tx.hash);
-                console.log(element);
                 exitOnError("未解析");
             }
         }
@@ -409,9 +403,10 @@ class TransParser {
                     //忽略协议
                     break;
                 default:
-                    logger.info(`未解析的协议:${command}`);
-                    console.log(command);
-                    console.log(inputData);
+                    console.log(tx.hash);
+                    logger.debug(`未解析的协议:${command}`);
+                    
+                    
                     break;
             }
         }

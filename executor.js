@@ -96,14 +96,22 @@ class Executor {
     }
 
     async getSymbol(tokenAddress){
-        const tokenContract = this.getErc20Contract(tokenAddress);
-        const symbol = await tokenContract.symbol();
-        return symbol;
+        try {
+            const tokenContract = this.getErc20Contract(tokenAddress);
+            const symbol = await tokenContract.symbol();
+            return symbol;   
+        } catch (error) {
+            return "";
+        }
     }
     async getDecimals(tokenAddress){
-        const tokenContract = this.getErc20Contract(tokenAddress);
-        const decimals = await tokenContract.decimals();
-        return decimals;
+        try {
+            const tokenContract = this.getErc20Contract(tokenAddress);
+            const decimals = await tokenContract.decimals();
+            return decimals;
+        } catch (error) {
+            return 18;
+        }
     }
 
     getErc20Contract(tokenAddress) {
