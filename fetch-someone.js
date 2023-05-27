@@ -30,13 +30,12 @@ async function fetchTransactions(address) {
 
 
 async function main(){
-    // const ethereumAddress = '0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D'; // 要查询的以太坊地址
-    // let txlist = await fetchTransactions(ethereumAddress);
-    // console.log(txlist.length);
-    // txlist.forEach(tx => {
-    //     onTransactionHandler(tx.hash);
-    // });
-    onTransactionHandler("0x8829ac16dd899f25109156c1aaa97429e1c3b2650fd4ab80d7b1c9f830a96907");
+    const ethereumAddress = '0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D'; // 要查询的以太坊地址
+    let txlist = await fetchTransactions(ethereumAddress);
+    console.log(txlist.length);
+    txlist.forEach(tx => {
+        onTransactionHandler(tx.hash);
+    });
     
 }
 
