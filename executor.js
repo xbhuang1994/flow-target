@@ -35,6 +35,29 @@ class Executor {
         this.providers[name] = provider;
         return provider;
     }
+    async getSwapPoolInfo(contractAddress) {
+        let poolInfo = {
+            token0: "",
+            token1: ""
+        }
+        try {
+            const poolContract = this.getContractByName('v3_pool', contractAddress);
+            poolInfo.token0 = await poolContract.token0();
+            poolInfo.token1 = await poolContract.token1();
+            return poolInfo;
+        } catch (error) {
+
+        }
+        try {
+            const poolContract = this.getContractByName('v2_pool', contractAddress);
+            poolInfo.token0 = await poolContract.token0();
+            poolInfo.token1 = await poolContract.token1();
+            return poolInfo;
+        } catch (error) {
+            
+        }
+        return null;
+    }
     subscribeNewBlockTx(callback) {
         if (this.newBlockSubscribed) {
             logger.debug('subscribeNewBlockTx: already subscribed');
@@ -101,7 +124,7 @@ class Executor {
     getTransaction(txHash) {
         return this.wsProvider().getTransaction(txHash);
     }
-    getTransactionReceipt(txHash){
+    getTransactionReceipt(txHash) {
         const receipt = this.wsProvider().getTransactionReceipt(txHash);
         return receipt;
     }
@@ -143,13 +166,15 @@ class Executor {
             return 18;
         }
     }
-
-    getErc20Contract(tokenAddress) {
-        let tokenABI = this.abi('erc20');
+    getContractByName(name, contractAddress) {
+        let tokenABI = this.abi(name);
         let provider = this.wsProvider();
         // Create a contract instance
-        const tokenContract = new ethers.Contract(tokenAddress, tokenABI, provider);
+        const tokenContract = new ethers.Contract(contractAddress, tokenABI, provider);
         return tokenContract;
+    }
+    getErc20Contract(tokenAddress) {
+        return this.getContractByName('erc20', tokenAddress);
     }
 }
 function now() {

@@ -1,5 +1,7 @@
 const { ethers } = require('ethers');
 const logger = require('./logger.js');
+const axios = require('axios');
+const fs = require('fs');
 const RouterType = {
     None: 0,
     UniswapV2R2: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
@@ -122,10 +124,94 @@ class Params {
 class TransParser {
     constructor() {
         this.abiMap = {};
+        this.interfaces = [];
+        this.erc20Interface = new ethers.utils.Interface(this.abi('erc20'));
         this.v2Interface = new ethers.utils.Interface(this.abi('v2_router'));
         this.v3Interface = new ethers.utils.Interface(this.abi('v3_router'));
         this.v3r2Interface = new ethers.utils.Interface(this.abi('v3_router2'));
         this.uniInterface = new ethers.utils.Interface(this.abi('uni_router'));
+        this.v2PoolInterface = new ethers.utils.Interface(this.abi('v2_pool'));
+        this.v3PoolInterface = new ethers.utils.Interface(this.abi('v3_pool'));
+        this.wethInterface = new ethers.utils.Interface(this.abi('weth'));
+        this.permit2Interface = new ethers.utils.Interface(this.abi('permit2'));
+        this.interfaces.push(this.permit2Interface);
+        this.interfaces.push(this.wethInterface);
+        this.interfaces.push(this.v2Interface);
+        this.interfaces.push(this.v3Interface);
+        this.interfaces.push(this.v3r2Interface);
+        this.interfaces.push(this.uniInterface);
+        this.interfaces.push(this.v2PoolInterface);
+        this.interfaces.push(this.v3PoolInterface);
+        this.fetchingAbiMap = new Map();
+        this.loadNonStandardInterfaces();
+    }
+    loadNonStandardInterfaces() {
+        const path = require('path');
+        const directoryPath = "./abi/non-standard";
+        // 读取指定文件夹下的所有文件
+        fs.readdir(directoryPath, (err, files) => {
+            if (err) {
+                console.error('Error reading directory:', err);
+                return;
+            }
+            files.forEach(file => {
+                if(file.endsWith('json')){
+                    // 构建文件路径
+                    const filePath = path.join(directoryPath, file);
+                    let json = require('./'+filePath);
+                    let inter = new ethers.utils.Interface(json);
+                    this.interfaces.push(inter);
+                }
+            });
+        });
+    }
+    async getContractABI(contractAddress) {
+        try {
+            let response = null;
+            if (this.fetchingAbiMap.has(contractAddress)) {
+                response = await this.fetchingAbiMap.get(contractAddress);
+            } else {
+                // 发送请求获取合约信息
+                const responsePromise = axios.get(`https://api.etherscan.io/api?module=contract&action=getabi&address=${contractAddress}&apikey=346J9Q82BCT5G9P3KA97YX3I42TGSVUM8W`);
+                this.fetchingAbiMap.set(contractAddress, responsePromise);
+                response = await responsePromise;
+            }
+            if (this.fetchingAbiMap.has(contractAddress))
+                this.fetchingAbiMap.delete(contractAddress);
+
+            if (response && response.data.status === '1') {
+                const abi = JSON.parse(response.data.result);
+                let outputPath = `./abi/non-standard/${contractAddress}_abi.json`;
+                // 将 ABI 写入文件
+                fs.writeFileSync(outputPath, JSON.stringify(abi, null, 2));
+                return abi;
+            } else {
+                console.log('Error retrieving contract ABI:', response.data.message, contractAddress);
+                return null;
+            }
+        } catch (error) {
+            logger.error('Error:', error.message);
+        }
+    }
+    async tryParseLog(logData) {
+        let array = this.interfaces;
+        for (let index = 0; index < array.length; index++) {
+            const element = array[index];
+            try {
+                let log = element.parseLog(logData);
+                return log;
+            } catch (error) {
+
+            }
+        }
+        try {   
+            let abi = await this.getContractABI(logData.address);
+            let inter = new ethers.utils.Interface(abi);
+            this.interfaces.push(inter);
+            return inter.parseLog(logData);
+        } catch (error) {
+            return null;    
+        }
     }
     abi(name) {
         let abi = this.abiMap[name];
@@ -374,7 +460,7 @@ class TransParser {
                 || sig.name == "sweepToken") {
                 // 与交易无关，不用理会
             } else {
-                console.log(tx.hash,sig.name);
+                console.log(tx.hash, sig.name);
                 exitOnError("未解析");
             }
         }
@@ -412,8 +498,8 @@ class TransParser {
                 default:
                     console.log(tx.hash);
                     logger.debug(`未解析的协议:${command}`);
-                    
-                    
+
+
                     break;
             }
         }
