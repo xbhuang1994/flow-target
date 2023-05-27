@@ -10,7 +10,7 @@ const parser = new TransParser();
 const etherscanKey = "346J9Q82BCT5G9P3KA97YX3I42TGSVUM8W";
 const fetchedMap = new Map();
 const axios = require('axios');
-const fetchTimeout = 1000 * 60 * 30;
+const fetchTimeout = 1000 * 60 * 60 * 8;
 async function fetchTransactions(address) {
   try {
     const url = `https://api.etherscan.io/api?module=account&action=txlist&address=${address}&sort=desc`;
@@ -37,6 +37,7 @@ async function fetchSomeone(ethereumAddress = '0x3726f1Ba0BFef4634C8413823C5cD53
             return;
         }
     }
+    fetchedMap.set(ethereumAddress,new Date().getTime());
     let txlist = await fetchTransactions(ethereumAddress);
     console.log(txlist.length);
     for (let index = 0; index < txlist.length; index++) {
@@ -44,7 +45,6 @@ async function fetchSomeone(ethereumAddress = '0x3726f1Ba0BFef4634C8413823C5cD53
         await onTransactionHandler(tx.hash);
     }
     console.log("fetched");
-    fetchedMap.set(ethereumAddress,new Date().getTime());
 }
 
 async function onTransactionHandler(hash) {
@@ -148,7 +148,8 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Content-Type', 'text/plain');
   const queryObject = url.parse(req.url,true).query;
   if(queryObject.ethereumAddress){
-    await fetchSomeone(queryObject.ethereumAddress);
+    console.log("fetch",queryObject.ethereumAddress);
+    fetchSomeone(queryObject.ethereumAddress);
   }
   res.end('ok');
 });
