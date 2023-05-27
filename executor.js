@@ -128,6 +128,14 @@ class Executor {
         const receipt = this.wsProvider().getTransactionReceipt(txHash);
         return receipt;
     }
+    async getBlockInfo(blockNumber) {
+        try {
+          const block = await this.wsProvider().getBlock(blockNumber);
+          return block;
+        } catch (error) {
+          console.error('获取块信息错误:', error);
+        }
+      }
     parseTransaction(tx) {
         let to = tx.to.toLowerCase();
         try {

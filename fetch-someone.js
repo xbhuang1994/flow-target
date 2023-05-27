@@ -1,3 +1,4 @@
+
 const { Executor } = require('./executor');
 const logger = require('./logger');
 const { TransParser } = require('./trans-parser');
@@ -5,21 +6,39 @@ const { SwapModel } = require('./storage-db');
 const { ethers } = require('ethers');
 const executor = new Executor({ wsNodeUrl: 'ws://51.178.179.113:8546' });
 const parser = new TransParser();
-const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".toLowerCase();
-(async () => {
+const etherscanKey = "346J9Q82BCT5G9P3KA97YX3I42TGSVUM8W";
 
-    // await onTransactionHandler("0x2b29ff60a82b794395dd28599dde25c6c01939d491e10c17bf10139bc1443646")
-    executor.subscribeNewBlockTx((rs) => {
-        let blockNumber = rs.blockNumber;
-        logger.info(`BlockNumber: ${blockNumber}`);
-        let transactions = rs.transactions;
-        console.log(blockNumber,transactions.length);
-        transactions.forEach(onTransactionHandler);
+const axios = require('axios');
 
-    })
+async function fetchTransactions(address) {
+  try {
+    const url = `https://api.etherscan.io/api?module=account&action=txlist&address=${address}&sort=desc`;
+    const response = await axios.get(url);
+    
+    if (response.data.status === '1') {
+      const transactions = response.data.result;
+    //   console.log(transactions);
+      return transactions;
+    } else {
+      console.log('API 请求失败:', response.data.message);
+    }
+  } catch (error) {
+    console.error('请求错误:', error);
+  }
+}
+
+
+
+async function main(){
+    // const ethereumAddress = '0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D'; // 要查询的以太坊地址
+    // let txlist = await fetchTransactions(ethereumAddress);
+    // console.log(txlist.length);
+    // txlist.forEach(tx => {
+    //     onTransactionHandler(tx.hash);
+    // });
+    onTransactionHandler("0x8829ac16dd899f25109156c1aaa97429e1c3b2650fd4ab80d7b1c9f830a96907");
     
 }
-)();
 
 async function onTransactionHandler(hash) {
     try {
@@ -29,6 +48,7 @@ async function onTransactionHandler(hash) {
             let receipt = await executor.getTransactionReceipt(hash);
             if (receipt) {
                 if (receipt.status === 1) {
+                    // console.log(receipt.blockNumber);
                     let blockInfo = await executor.getBlockInfo(receipt.blockNumber);
                     params.confirmedTime = blockInfo.timestamp * 1000;
                     let logs = receipt.logs;
@@ -94,8 +114,15 @@ async function onTransactionHandler(hash) {
                     });
                     params.amounts = amounts;
                     // logger.info(`${hash} is ok ${params.amounts.length}`);
-                    let swapModel = new SwapModel(params);
-                    await swapModel.save();
+                    // let swapModel = new SwapModel(params);
+                    SwapModel.findOneAndUpdate({ hash }, params, { upsert: true, new: true })
+                    .then((result) => {
+                        console.log('添加/更新成功:',result);
+                    })
+                    .catch((error) => {
+                        console.error('添加/更新错误:');
+                    })
+                    // await swapModel.save();
                 }
             }
         }
@@ -106,3 +133,4 @@ async function onTransactionHandler(hash) {
 
 }
 
+main();
