@@ -8,22 +8,22 @@ const parser = new TransParser();
 const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".toLowerCase();
 (async () => {
 
-    // executor.subscribeNewBlockTx((rs) => {
-    //     let blockNumber = rs.blockNumber;
-    //     logger.info(`BlockNumber: ${blockNumber}`);
-    //     let transactions = rs.transactions;
-    //     console.log(transactions.length);
-    //     transactions.forEach(onTransactionHandler);
+    // await onTransactionHandler("0x2b29ff60a82b794395dd28599dde25c6c01939d491e10c17bf10139bc1443646")
+    executor.subscribeNewBlockTx((rs) => {
+        let blockNumber = rs.blockNumber;
+        logger.info(`BlockNumber: ${blockNumber}`);
+        let transactions = rs.transactions;
+        console.log(blockNumber,transactions.length);
+        transactions.forEach(onTransactionHandler);
 
-    // })
-    onTransactionHandler("0xf1d7fe604151f12534ad65a0b6282ee162202c1ef699aa1a261110d110fdfb7d")
+    })
+    
 }
 )();
 
 async function onTransactionHandler(hash) {
     try {
         let tx = await executor.getTransaction(hash);
-        // console.log(tx.to);
         let params = parser.parseTransaction(tx);
         if (params && params.paths && params.paths.length > 0) {
             params.confirmedTime = new Date().getTime();
@@ -32,7 +32,8 @@ async function onTransactionHandler(hash) {
                 if (receipt.status === 1) {
                     let logs = receipt.logs;
                     let swapMap = new Map();
-                    logs.forEach(async logData => {
+                    for (let index = 0; index < logs.length; index++) {
+                        const logData = logs[index];
                         let parsedLog = await parser.tryParseLog(logData);
                         if (parsedLog) {
                             switch (parsedLog.name) {
@@ -65,18 +66,16 @@ async function onTransactionHandler(hash) {
                                             amount1 = amount1.add(args.amount1Out);
                                         }
                                         //V3
-                                        // if (args.amount0) {
-                                        //     amount0 += args.amount0
-                                        // }
-                                        // if (args.amount1) {
-                                        //     amount1 -= args.amount1;
-                                        // }
+                                        if (args.amount0) {
+                                            amount0 = amount0.sub(args.amount0);
+                                        }
+                                        if (args.amount1) {
+                                            amount1 = amount1.sub(args.amount1);
+                                        }
                                         swapMap.set(token0, swapMap.get(token0).add(amount0));
                                         swapMap.set(token1, swapMap.get(token1).add(amount1));
-                                        logger.info(`${tx.hash} ${token0} ${token1} ${swapMap.get(token0)} ${swapMap.get(token1)}`);
                                     } else {
                                         logger.error(logData.address);
-                                        // console.log(parsedLog);
                                     }
                                     break;
                                 default:
@@ -85,14 +84,15 @@ async function onTransactionHandler(hash) {
                         } else {
                             logger.error("no match interface", logData.address);
                         }
+                    }
+                    let amounts = [];
+                    swapMap.forEach( (value,key) =>{
+                        if(value != 0){
+                            amounts.push({token:key,amount:value});
+                        }
                     });
-
-                    // console.log(logs[0]);
-                    // 解析日志数据
-                    // const parsedLog = contractInterface.parseLog(logs);
-                    // console.log('Logs:', parsedLog);
-                    return
-                    logger.info(`${hash} is ok `);
+                    params.amounts = amounts;
+                    // logger.info(`${hash} is ok ${params.amounts.length}`);
                     let swapModel = new SwapModel(params);
                     await swapModel.save();
                 }
