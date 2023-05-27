@@ -4,12 +4,13 @@ const logger = require('./logger');
 const { TransParser } = require('./trans-parser');
 const { SwapModel } = require('./storage-db');
 const { ethers } = require('ethers');
+
 const executor = new Executor({ wsNodeUrl: 'ws://51.178.179.113:8546' });
 const parser = new TransParser();
 const etherscanKey = "346J9Q82BCT5G9P3KA97YX3I42TGSVUM8W";
-
+const fetchedMap = new Map();
 const axios = require('axios');
-
+const fetchTimeout = 1000 * 60 * 30;
 async function fetchTransactions(address) {
   try {
     const url = `https://api.etherscan.io/api?module=account&action=txlist&address=${address}&sort=desc`;
@@ -27,16 +28,23 @@ async function fetchTransactions(address) {
   }
 }
 
-
-
-async function main(){
-    const ethereumAddress = '0x911d8542A828a0aFaF0e5d94Fee9Ba932C47d72D'; // 要查询的以太坊地址
+async function fetchSomeone(ethereumAddress = '0x3726f1Ba0BFef4634C8413823C5cD53B4432db9a'){
+    if(fetchedMap.has(ethereumAddress)){
+        let timestamp = new Date().getTime();
+        let lastTimestamp = fetchedMap.get(ethereumAddress);
+        if(timestamp - lastTimestamp < fetchTimeout){
+            console.log("刷新频率过快, 冷却时间:",(timestamp - lastTimestamp - fetchTimeout) / 1000);
+            return;
+        }
+    }
     let txlist = await fetchTransactions(ethereumAddress);
     console.log(txlist.length);
-    txlist.forEach(tx => {
-        onTransactionHandler(tx.hash);
-    });
-    
+    for (let index = 0; index < txlist.length; index++) {
+        const tx = txlist[index];
+        await onTransactionHandler(tx.hash);
+    }
+    console.log("fetched");
+    fetchedMap.set(ethereumAddress,new Date().getTime());
 }
 
 async function onTransactionHandler(hash) {
@@ -116,10 +124,10 @@ async function onTransactionHandler(hash) {
                     // let swapModel = new SwapModel(params);
                     SwapModel.findOneAndUpdate({ hash }, params, { upsert: true, new: true })
                     .then((result) => {
-                        console.log('添加/更新成功:',result);
+                        // console.log('添加/更新成功:');
                     })
                     .catch((error) => {
-                        console.error('添加/更新错误:');
+                        console.error('添加/更新错误'+ hash);
                     })
                     // await swapModel.save();
                 }
@@ -132,4 +140,19 @@ async function onTransactionHandler(hash) {
 
 }
 
-main();
+const http = require('http');
+const url = require('url');
+
+const server = http.createServer(async (req, res) => {
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/plain');
+  const queryObject = url.parse(req.url,true).query;
+  if(queryObject.ethereumAddress){
+    await fetchSomeone(queryObject.ethereumAddress);
+  }
+  res.end('ok');
+});
+
+server.listen(3001, '127.0.0.1', () => {
+  console.log('Server running at http://127.0.0.1:3001/?ethereumAddress=0x3726f1Ba0BFef4634C8413823C5cD53B4432db9a');
+});
