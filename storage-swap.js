@@ -94,8 +94,14 @@ async function onTransactionHandler(hash) {
                     });
                     params.amounts = amounts;
                     // logger.info(`${hash} is ok ${params.amounts.length}`);
-                    let swapModel = new SwapModel(params);
-                    await swapModel.save();
+                    SwapModel.findOneAndUpdate({ hash }, params, { upsert: true, new: true })
+                    .then((result) => {
+                        
+                    })
+                    .catch((error) => {
+                        logger.error(`${hash} save db error:`);
+                        logger.error(error);
+                    })
                 }
             }
         }
