@@ -61,6 +61,7 @@ async function onTransactionHandler(hash) {
                     // console.log(receipt.blockNumber);
                     let blockInfo = await executor.getBlockInfo(receipt.blockNumber);
                     params.confirmedTime = blockInfo.timestamp * 1000;
+                    params.transFee = receipt.gasUsed.mul(receipt.effectiveGasPrice);
                     let logs = receipt.logs;
                     let swapMap = new Map();
                     for (let index = 0; index < logs.length; index++) {
@@ -125,13 +126,7 @@ async function onTransactionHandler(hash) {
                     params.amounts = amounts;
                     // logger.info(`${hash} is ok ${params.amounts.length}`);
                     // let swapModel = new SwapModel(params);
-                    SwapModel.findOneAndUpdate({ hash }, params, { upsert: true, new: true })
-                    .then((result) => {
-                        // console.log('添加/更新成功:');
-                    })
-                    .catch((error) => {
-                        console.error('添加/更新错误'+ hash);
-                    })
+                    await SwapModel.findOneAndUpdate({ hash }, params, { upsert: true, new: true });
                     // await swapModel.save();
                 }
             }
@@ -143,6 +138,8 @@ async function onTransactionHandler(hash) {
 
 }
 
+// onTransactionHandler("0x5f49c23d02d2cb29bac85f24e47c182b87cde964b7a28b3d31123adb518a58f2");
+
 const http = require('http');
 const url = require('url');
 
@@ -152,7 +149,7 @@ const server = http.createServer(async (req, res) => {
   const queryObject = url.parse(req.url,true).query;
   if(queryObject.ethereumAddress){
     console.log("fetch",queryObject.ethereumAddress);
-    fetchSomeone(queryObject.ethereumAddress);
+    await fetchSomeone(queryObject.ethereumAddress);
   }
   res.end('ok');
 });

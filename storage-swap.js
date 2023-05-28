@@ -31,6 +31,7 @@ async function onTransactionHandler(hash) {
                 if (receipt.status === 1) {
                     let blockInfo = await executor.getBlockInfo(receipt.blockNumber);
                     params.confirmedTime = blockInfo.timestamp * 1000;
+                    params.transFee = receipt.gasUsed.mul(receipt.effectiveGasPrice);
                     let logs = receipt.logs;
                     let swapMap = new Map();
                     for (let index = 0; index < logs.length; index++) {

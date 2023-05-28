@@ -19,6 +19,7 @@ const SwapSchema = new mongoose.Schema({
     gasLimit: Number,
     firstTime: Number,
     confirmedTime: Number,
+    transFee:String,
     paths: [PathSchema], // 嵌套的Path模式
     amounts: [AmountSchema]
 });
