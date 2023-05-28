@@ -40,10 +40,13 @@ async function fetchSomeone(ethereumAddress = '0x3726f1Ba0BFef4634C8413823C5cD53
     fetchedMap.set(ethereumAddress,new Date().getTime());
     let txlist = await fetchTransactions(ethereumAddress);
     console.log(txlist.length);
+    let handlers = []
     for (let index = 0; index < txlist.length; index++) {
         const tx = txlist[index];
-        await onTransactionHandler(tx.hash);
+        let handler = onTransactionHandler(tx.hash);
+        handlers.push(handler);
     }
+    await Promise.all(handlers);
     console.log("fetched");
 }
 
